@@ -1,0 +1,6 @@
+.vscode/
+.idea/
+.env
+.venv/
+*pycache*/
+src/langs.py
