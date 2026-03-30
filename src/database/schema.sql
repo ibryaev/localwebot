@@ -1,7 +1,6 @@
 BEGIN TRANSACTION;
 
 DO $$ BEGIN
-    -- Вайбкод (проверка на существование)
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'admin_type') THEN
         CREATE TYPE admin_type AS ENUM ('owner', 'helper', 'admin', 'moder');
     END IF;
@@ -14,7 +13,7 @@ CREATE TABLE IF NOT EXISTS webs (
     id_web SERIAL PRIMARY KEY,
     forename VARCHAR(32),
     tid_owner BIGINT,
-    tid_chats BIGINT[] DEFAULT '{}', -- "'{}'" - Вайбкод
+    tid_chats BIGINT[] DEFAULT '{}',
     date_reg TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -22,6 +21,7 @@ CREATE TABLE IF NOT EXISTS chats (
     tid_chat BIGINT PRIMARY KEY,
     username VARCHAR(32) DEFAULT NULL,
     id_web INTEGER REFERENCES webs(id_web) ON DELETE CASCADE,
+    tid_owner BIGINT,
     date_reg TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS admins (
     id_web INTEGER REFERENCES webs(id_web) ON DELETE CASCADE,
     post admin_type,
     date_reg TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (tid_user, id_web) -- Вайбкод
+    UNIQUE (tid_user, id_web)
 );
 
 CREATE TABLE IF NOT EXISTS restrictions (

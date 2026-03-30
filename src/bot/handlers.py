@@ -1,6 +1,7 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message
+import datetime
 
 import bot.keyboards as kb
 from config import *
@@ -15,7 +16,7 @@ async def cmd_start_help(message: Message):
     bot_full_name = botme.full_name
 
     await message.answer(
-        text="Установка меню",
+        text="⚙️ <i>Установка меню></i>",
         reply_markup=await kb.main_menu()
     )
 
@@ -38,12 +39,70 @@ async def cmd_start_help(message: Message):
 
 @rt.message(F.text[2:] == "Создать паутину")
 @rt.message(F.text[3:] == "Создать паутину")
-async def create_web(message: Message):
-    await message.reply("1")
+async def web_create(message: Message):
+    user = message.from_user
+    web = await db.web_read(user.id)
+
+    if web is not None:
+        return await message.answer("❌ <b>Ошибка</b>\nУ Вас уже есть паутина.")
+
+    web = await db.mkweb(
+        forename=user.full_name,
+        tid_owner=user.id,
+        owner_username=user.username
+    )
+
+    if web is None:
+        return await message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.")
+
+    # Вывод
+    forename = web['forename']
+    id_web = web['id_web']
+
+    await message.reply(
+        text=(
+            f"{await rndemoji()} Паутина <b>\"{forename}\" #{id_web}</b> успешно создана!\n\n"
+            "Добавьте в неё первые чаты 👇"
+        ),
+        reply_markup=await kb.add_to_chat()
+    )
 
 @rt.message(F.text == "➕ Добавить в чат")
 async def add_to_chat(message: Message):
     await message.answer(
         text="Добавляй бота в нужные чаты и пиши там команду <code>паутина</code> 🕸️",
         reply_markup=await kb.add_to_chat()
+    )
+
+@rt.message(F.text == "🗂️ Моя паутина")
+async def my_web(message: Message):
+    web = await db.web_read(message.from_user.id)
+
+    if web is None:
+        return await message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+
+    date_reg = datetime.datetime.strftime(web['date_reg'], "%c")
+
+    tid_chats = web['tid_chats']
+    tid_chats_str = ""
+    if not tid_chats:
+        tid_chats_str = "<i>Пусто</i>"
+    else:
+        seq = 1
+        for cid in tid_chats:
+            chat = await bot.get_chat(cid)
+            tid_chats_str += "<b>" + seq + ".</b> " + f"<a href='https://t.me/{chat.username}'>{chat.full_name}</a>\n"
+            seq += 1
+
+    forename = web['forename']
+    id_web = web['id_web']
+
+    await message.answer(
+        text=(
+            f"{await rndemoji()} <b>{forename}</b> #{id_web}\n"
+            f"Дата создания: <b>{date_reg}</b>\n\n"
+            "<b>Чаты:</b>\n"
+            f"{tid_chats_str}"
+        ),
+        reply_markup=None 
     )

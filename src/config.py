@@ -1,6 +1,7 @@
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
+from database import Database
 
 bot = Bot(
     token="8751189083:AAEaYJgYQAAjVJ3cCpwutYsyxUmHjF2SAJ0",
@@ -13,5 +14,6 @@ bot = Bot(
         link_preview_is_disabled=True
     )
 )
+db = Database()
 
 BOT_USERNAME = "localwebot"

@@ -7,6 +7,7 @@ from config import *
 dp = Dispatcher()
 
 async def main() -> None:
+    await db.connect()
     dp.include_router(rt_handlers)
     print(1)
     await dp.start_polling(bot)
