@@ -1,3 +1,7 @@
-[x] Replace psycopg2 with psycopg3 (because asyncio)
-[X] Finish database and integrate it
-[ ] .env-file
+- [x] Replace psycopg2 with psycopg3 (because asyncio)
+- [X] Finish database and integrate it
+- [ ] Create .env-file
+- [ ] Add english language
+- [ ] Ability to rename web
+- [ ] Limit three chats for one web
+- [ ] Add settings for web in "my web"-menu
