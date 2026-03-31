@@ -1,5 +1,6 @@
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+from emoji import is_emoji
 
 class Database():
     def __init__(self):
@@ -37,6 +38,19 @@ class Database():
             print(f"error: database/db_query.py: web_read(): {e}")
             return None
 
+    async def web_get_id(self, tid_owner: int) -> int:
+        try:
+            await self.cur.execute(
+                "SELECT id_web FROM webs WHERE tid_owner = %s",
+                (tid_owner,)
+            )
+            web = await self.cur.fetchone()
+            return web['id_web'] if web else -1
+
+        except Exception as e:
+            print(f"error: database/db_query.py: web_get_id(): {e}")
+            return None
+
     async def mkweb(self, forename: str, tid_owner: int, owner_username: str) -> dict:
         '''Создаёт паутину в таблице webs, а также создателя в таблице admins'''
         try:
@@ -60,12 +74,15 @@ class Database():
             print(f"error: database/db_query.py: mkweb(): {e}")
             return None
 
-    async def web_rename(self, id_web: int, new_forename: str) -> bool:
+    async def web_rename(self, id_web: int, new_forename: str, new_emoji: str) -> bool:
         '''Переименовывает паутину'''
+        if not is_emoji(new_emoji):
+            raise ValueError("Emoji required")
+
         try:
             await self.cur.execute(
-                """UPDATE webs SET forename = %s WHERE id_web = %s""",
-                (new_forename, id_web)
+                """UPDATE webs SET forename = %s, emoji = %s WHERE id_web = %s""",
+                (new_forename, new_emoji, id_web)
             )
             await self.conn.commit()
             return True

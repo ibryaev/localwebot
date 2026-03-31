@@ -16,7 +16,7 @@ async def cmd_start_help(message: Message):
     bot_full_name = botme.full_name
 
     await message.answer(
-        text="⚙️ <i>Установка меню></i>",
+        text="⚙️ <i>Установка меню</i>",
         reply_markup=await kb.main_menu()
     )
 
@@ -44,7 +44,7 @@ async def web_create(message: Message):
     web = await db.web_read(user.id)
 
     if web is not None:
-        return await message.answer("❌ <b>Ошибка</b>\nУ Вас уже есть паутина.")
+        return await message.answer("❌ <b>Ошибка</b>\nУ Вас уже есть паутина.") # Вывод
 
     web = await db.mkweb(
         forename=user.full_name,
@@ -53,7 +53,7 @@ async def web_create(message: Message):
     )
 
     if web is None:
-        return await message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.")
+        return await message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
 
     # Вывод
     forename = web['forename']
@@ -61,8 +61,9 @@ async def web_create(message: Message):
 
     await message.reply(
         text=(
-            f"{await rndemoji()} Паутина <b>\"{forename}\" #{id_web}</b> успешно создана!\n\n"
-            "Добавьте в неё первые чаты 👇"
+            f"✅ Паутина <b>\"{forename}\" #{id_web}</b> успешно создана!\n\n"
+            "Можете заняться её первоначальной настройкой, нажав на кнопку <code>🗂️ Моя паутина</code> "
+            "или сразу добавить в неё первые чаты 👇"
         ),
         reply_markup=await kb.add_to_chat()
     )
@@ -70,7 +71,7 @@ async def web_create(message: Message):
 @rt.message(F.text == "➕ Добавить в чат")
 async def add_to_chat(message: Message):
     await message.answer(
-        text="Добавляй бота в нужные чаты и пиши там команду <code>паутина</code> 🕸️",
+        text="📥 Добавляй бота в нужные чаты и пиши там команду <code>паутина</code>",
         reply_markup=await kb.add_to_chat()
     )
 
@@ -79,9 +80,8 @@ async def my_web(message: Message):
     web = await db.web_read(message.from_user.id)
 
     if web is None:
-        return await message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
-    date_reg = datetime.datetime.strftime(web['date_reg'], "%c")
 
     tid_chats = web['tid_chats']
     tid_chats_str = ""
@@ -94,15 +94,17 @@ async def my_web(message: Message):
             tid_chats_str += "<b>" + seq + ".</b> " + f"<a href='https://t.me/{chat.username}'>{chat.full_name}</a>\n"
             seq += 1
 
+    emoji = web['emoji'] or await rndemoji()
     forename = web['forename']
     id_web = web['id_web']
+    date_reg = datetime.datetime.strftime(web['date_reg'], "%c")
 
     await message.answer(
         text=(
-            f"{await rndemoji()} <b>{forename}</b> #{id_web}\n"
+            f"{emoji} <b>{forename}</b> #{id_web}\n"
             f"Дата создания: <b>{date_reg}</b>\n\n"
             "<b>Чаты:</b>\n"
             f"{tid_chats_str}"
         ),
-        reply_markup=None 
+        reply_markup=await kb.web_settings() 
     )

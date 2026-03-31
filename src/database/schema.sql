@@ -12,6 +12,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS webs (
     id_web SERIAL PRIMARY KEY,
     forename VARCHAR(32),
+    emoji VARCHAR(1) DEFAULT NULL,
     tid_owner BIGINT,
     tid_chats BIGINT[] DEFAULT '{}',
     date_reg TIMESTAMP DEFAULT CURRENT_TIMESTAMP
