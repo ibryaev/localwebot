@@ -23,7 +23,7 @@ async def main_menu() -> ReplyKeyboardMarkup:
         [KeyboardButton(text="🗂️ Моя паутина")],
         [KeyboardButton(text=f"{await rndemoji()} Создать паутину", style="success"), #
          KeyboardButton(text="➕ Добавить в чат", style="primary")],                  # 
-        [KeyboardButton(text="📚 Помощь")]
+        [KeyboardButton(text="📚 Команды")]
     ],
     resize_keyboard=True,
     input_field_placeholder="Выберите опцию..."
@@ -33,9 +33,10 @@ async def main_menu() -> ReplyKeyboardMarkup:
 
 async def web_settings() -> InlineKeyboardMarkup:
     inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✏️ Переименовать", callback_data="web_rename"),       #
-         InlineKeyboardButton(text="❌ Удалить", callback_data="rmweb", style="danger")], #
-        [InlineKeyboardButton(text="🛡️ Администрация", callback_data="admins")]
+        [InlineKeyboardButton(text="✏️ Переименовать", callback_data="rename")],
+        [InlineKeyboardButton(text="🛡️ Администрация", callback_data="admins")],
+        [InlineKeyboardButton(text="📤 Передать", callback_data="transfer", style="danger"),
+         InlineKeyboardButton(text="🗑️ Удалить", callback_data="remove", style="danger")]
     ])
 
     return inline_keyboard

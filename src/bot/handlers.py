@@ -12,6 +12,8 @@ rt = Router(name="handlers")
 @rt.message(CommandStart(ignore_case=True))
 @rt.message(F.text == f"помощь")
 async def cmd_start_help(message: Message):
+    await db.mkusername(message.from_user.id, message.from_user.username)
+
     botme = await bot.get_me(60)
     bot_full_name = botme.full_name
 
@@ -29,7 +31,7 @@ async def cmd_start_help(message: Message):
             "войдёт в другой чат, но из той же сетки, то бот автоматически забанит его и там.\n"
             "🔇 <b>Глобальный мут:</b> Замученный в одном чате человек, не сможет писать сообщения в другой чате, из той же сетки.\n"
             "👟 <b>Глобальный кик:</b> Кик человека из одного чата, кикнет его из всех чатов этой сетки.\n"
-            "🛡️ <b>Глобальная модерация:</b> Админ из одного чата, будет админом во всех чатах сетки. Подробнее - команда <code>модерация</code>.\n\n"
+            "🛡️ <b>Глобальная модерация:</b> Админ из одного чата, будет админом во всех чатах сетки.\n\n"
             "<b>Один</b> человек может иметь <b>одну</b> паутину,\n"
             "<b>один</b> чат может состоять в <b>одной</b> паутине!\n\n"
             "Создай паутину используя меню, добавляй бота в нужные чаты и пиши там команду <code>паутина</code> 👇"
@@ -41,15 +43,14 @@ async def cmd_start_help(message: Message):
 @rt.message(F.text[3:] == "Создать паутину")
 async def web_create(message: Message):
     user = message.from_user
-    web = await db.web_read(user.id)
+    web = await db.web_get(user.id)
 
     if web is not None:
         return await message.answer("❌ <b>Ошибка</b>\nУ Вас уже есть паутина.") # Вывод
 
     web = await db.mkweb(
         forename=user.full_name,
-        tid_owner=user.id,
-        owner_username=user.username
+        tid_owner=user.id
     )
 
     if web is None:
@@ -77,11 +78,10 @@ async def add_to_chat(message: Message):
 
 @rt.message(F.text == "🗂️ Моя паутина")
 async def my_web(message: Message):
-    web = await db.web_read(message.from_user.id)
+    web = await db.web_get(message.from_user.id)
 
     if web is None:
         return await message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
-
 
     tid_chats = web['tid_chats']
     tid_chats_str = ""
