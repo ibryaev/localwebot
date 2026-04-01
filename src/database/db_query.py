@@ -101,14 +101,8 @@ class Database():
                 "UPDATE webs SET tid_owner = %s WHERE id_web = %s",
                 (new_tid_owner, id_web)
             )
-            await self.cur.execute(
-                "UPDATE admins SET post = %s WHERE tid_admin = %s AND id_web = %s",
-                ("helper", tid_owner, id_web)
-            )
-            await self.cur.execute(
-                "UPDATE admins SET post = %s WHERE tid_admin = %s AND id_web = %s",
-                ("owner", new_tid_owner, id_web)
-            )
+            await self.admin_edit_post(tid_owner, id_web, "helper")
+            await self.admin_edit_post(new_tid_owner, id_web, "owner")
             await self.conn.commit()
             return True
 
@@ -163,7 +157,7 @@ class Database():
             return False
 
 
-    async def mkusername(self, tid: int, username: str) -> bool:
+    async def mkusername(self, tid: int, username: str = None) -> bool:
         '''Записывает в таблицу usernames @юзернейм пользователя. Если запись уже есть - обновляет'''
         try:
             await self.cur.execute(
@@ -207,21 +201,23 @@ class Database():
             return None
 
 
-    async def mkchat(self, tid_chat: int, id_web: int, tid_owner: int, username: str) -> bool:
+    async def mkchat(self, tid_chat: int, id_web: int, tid_owner: int, username: str = None) -> bool:
         try:
             await self.cur.execute(
-                "INSERT INTO chats (tid_chat, id_web, tid_owner) VALUES (%s, %s, %s)",
+                "INSERT INTO chats (tid_chat, id_web, tid_owner) VALUES (%s, %s, %s) RETURNING *",
                 (tid_chat, id_web, tid_owner)
             )
+            chat = await self.cur.fetchone()
+
             await self.web_tid_chats_append(id_web, tid_chat)
             await self.mkusername(tid_chat, username)
             await self.conn.commit()
-            return True
+            return chat
 
         except Exception as e:
             print(f"error: database: mkchat(): {e}")
             await self.conn.rollback()
-            return False
+            return None
 
     async def chat_edit_tid_owner(self, tid_chat: int, new_tid_owner: int) -> bool:
         try:
@@ -253,6 +249,24 @@ class Database():
             return False
 
 
+    async def mkadmin(self, tid_admin: int, id_web: int, post: str, username: str = None) -> dict:
+        '''Создаёт администратора в таблице admins'''
+        try:
+            await self.cur(
+                "INSERT INTO admins (VALUES tid_admin, id_web, post) VALUES (%s, %s, %s) RETURNING *",
+                (tid_admin, id_web, post)
+            )
+            admin = await self.cur.fetchone()
+
+            await self.mkusername(tid_admin, username)
+            await self.conn.commit()
+            return admin
+
+        except Exception as e:
+            print(f"error: database: mkadmin(): {e}")
+            await self.conn.rollback()
+            return None
+
     async def admin_get(self, id_web: int, tid_admin: int) -> str:
         '''Возвращает полную информацию об админе из конкретной сетки, по  его Telegram ID'''
         try:
@@ -266,3 +280,34 @@ class Database():
         except Exception as e:
             print(f"error: database: admin_get(): {e}")
             return None
+
+    async def admin_edit_post(self, tid_admin: int, id_web: int, new_post: str) -> bool:
+        if new_post not in ('owner', 'helper', 'admin', 'moder'):
+            raise ValueError("Unknows post type")
+
+        try:
+            await self.cur.execute(
+                "UPDATE admins SET post = %s WHERE id_web = %s AND tid_admin = %s",
+                (new_post, id_web, tid_admin)
+            )
+            await self.conn.commit()
+            return True
+
+        except Exception as e:
+            print(f"error: database: admin_edit_post(): {e}")
+            await self.conn.rollback()
+            return False
+
+    async def rmadmin(self, tid_admin: int, id_web: int) -> bool:
+        try:
+            await self.cur.execute(
+                "DELETE FROM admins WHERE id_web = %s AND tid_admin = %s",
+                (id_web, tid_admin)
+            )
+            await self.conn.commit()
+            return True
+
+        except Exception as e:
+            print(f"error: databasey: rmadmin(): {e}")
+            await self.conn.rollback()
+            return False

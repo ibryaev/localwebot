@@ -4,7 +4,7 @@
 - [ ] Add english language
 - [x] Ability to rename                                 ([563a677](https://github.com/ibryaev/localwebot/commit/563a67750fc865ce2ec4667fac6f220cb6851979))
 - [ ] Limit three chats for one web
-- [x] Add settings for web in "my web"-menu
- - [ ] Finish panel with admins list
+- [x] Add settings for web in "my web"-menu             ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
+  - [ ] Finish panel with admins list
 - [ ] Trigger when bot added in chat
-- [x] Implement transfer web ownership
+- [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
