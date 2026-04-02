@@ -2,24 +2,22 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
     ReplyKeyboardMarkup, KeyboardButton
 )
-from aiogram.utils.keyboard import InlineKeyboardBuilder#, ReplyKeyboardBuilder
+#from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 from config import *
 from utils import *
 
 async def add_to_chat() -> InlineKeyboardMarkup:
-    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="➕ Добавить в чат",
+            text="Добавить в чат",
             url=f"https://t.me/{BOT_USERNAME}?startgroup",
             style='primary'
         )]
     ])
 
-    return inline_keyboard
-
 async def main_menu() -> ReplyKeyboardMarkup:
-    keyboard = ReplyKeyboardMarkup(keyboard=[
+    return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="🗂️ Моя паутина")],
         [KeyboardButton(text=f"{await rndemoji()} Создать паутину", style="success"), #
          KeyboardButton(text="➕ Добавить в чат", style="primary")],                  # 
@@ -29,14 +27,15 @@ async def main_menu() -> ReplyKeyboardMarkup:
     input_field_placeholder="Выберите опцию..."
     )
 
-    return keyboard
-
 async def web_settings() -> InlineKeyboardMarkup:
-    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✏️ Переименовать", callback_data="rename")],
         [InlineKeyboardButton(text="🛡️ Администрация", callback_data="admins")],
-        [InlineKeyboardButton(text="📤 Передать", callback_data="transfer", style="danger"),
-         InlineKeyboardButton(text="🗑️ Удалить", callback_data="remove", style="danger")]
+        [InlineKeyboardButton(text="📤 Передать", callback_data="transfer", style="danger"), #
+         InlineKeyboardButton(text="🗑️ Удалить", callback_data="remove", style="danger")]    #
     ])
 
-    return inline_keyboard
+async def send_invite_to_web(user_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Отправить предложение", callback_data=f"send_invite_{user_id}")]
+    ])

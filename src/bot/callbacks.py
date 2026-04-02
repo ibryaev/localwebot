@@ -5,10 +5,9 @@ from emoji import replace_emoji, is_emoji
 
 from config import *
 from bot.data import *
-from bot.handlers import my_web
+from bot.handlers import cmd_my_web
 
 rt = Router(name="callbacks")
-#punctuation = ["!", "\"", "#", "$", "%", "&", "\'", "(", ")", "*", "+", ",", "-", ".", "/", ":", ;<=>?@[\]^_`{|}~"""]
 punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^`{|}~ """
 
 @rt.callback_query(F.data == "rename")
@@ -18,62 +17,62 @@ async def cb_rename(callback: CallbackQuery, state: FSMContext):
 
 @rt.message(WebRename.new_forename)
 async def cb_msg_new_forename(message: Message, state: FSMContext):
-    new_forename = replace_emoji(string=message.text, replace="")
+    forename = replace_emoji(message.text, "")
 
-    if len(new_forename) > 32:
+    if len(forename) > 32:
         return await message.answer(
             # Вывод
             text=(
                  "❌ <b>Ошибка</b>\n"
                  "Имя сетки не должно быть длинее 32 символов и содержать какие-либо эмодзи.\n"
-                f"Попробуйте <code>{new_forename[:32]}</code>?"
+                f"Попробуйте <code>{forename[:32]}</code>?"
             )
         )
 
-    await state.update_data(new_forename=new_forename)
+    await state.update_data(forename=forename)
     await state.set_state(WebRename.new_emoji)
 
     await message.answer("Отправьте эмодзи, который будет значком этой паутины") # Вывод
 
 @rt.message(WebRename.new_emoji)
 async def cb_msg_new_emoji(message: Message, state: FSMContext):
-    new_emoji = message.text
+    emoji = message.text
 
-    if not is_emoji(new_emoji):
+    if not is_emoji(emoji):
         return await message.answer("❌ <b>Ошибка</b>\nВы отправили не эмодзи.") # Вывод
 
     data = await state.get_data()
 
-    id_user = message.from_user.id
-    new_forename = data['new_forename']
+    user_id = message.from_user.id
+    forename = data['forename']
 
     await state.clear()
 
-    id_web = await db.web_get_id(id_user)
+    web = await db.get_web_id(user_id)
 
-    if id_web is None:
+    if web is None:
         return await message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
-    result = await db.web_rename(id_web, new_forename, new_emoji)
+    result = await db.upd_web_name(web['web_id'], forename, emoji)
 
     if not result:
         return await message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
 
-    await my_web(message) # Вывод
+    await cmd_my_web(message) # Вывод
 
 
 @rt.callback_query(F.data == "remove")
 async def cb_remove(callback: CallbackQuery):
-    id_user = callback.from_user.id
-    web = await db.web_get(id_user)
+    user_id = callback.from_user.id
+    web = await db.get_web_id(user_id)
 
     if web is None:
         return await callback.message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
-    if web['tid_chats']:
+    if web['chats_tid']:
         return await callback.message.answer("❌ <b>Ошибка</b>\nПеред удалением сетки, Вам нужно удалить из неё все чаты.") # Вывод
 
-    result = await db.rmweb(web['id_web'])
+    result = await db.rm_web(web['web_id'])
 
     if not result:
         return await callback.message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
@@ -83,13 +82,13 @@ async def cb_remove(callback: CallbackQuery):
 
 @rt.callback_query(F.data == "transfer")
 async def cb_transfer(callback: CallbackQuery, state: FSMContext):
-    id_user = callback.from_user.id
-    id_web = await db.web_get_id(id_user)
+    user_id = callback.from_user.id
+    web = await db.get_web_id(user_id)
 
-    if id_web is None:
+    if web is None:
         return await callback.message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
-    await state.update_data(id_web=id_web)
+    await state.update_data(web_id=web['web_id'])
     await state.set_state(WebTransferOwnership.new_tid_owner)
 
     await callback.message.edit_text("Введите @юзернейм нового владельца <i>(он должен иметь переписку с ботом)</i>") # Вывод
@@ -104,20 +103,20 @@ async def cb_msg_new_tid_owner(message: Message, state: FSMContext):
 
     data = await state.get_data()
 
-    id_web = data['id_web']
-    new_tid_owner = await db.get_tid(new_owner_username)
+    web_id = data['web_id']
+    new_owner_tid = await db.get_tid(new_owner_username)
 
     await state.clear()
 
-    if new_tid_owner is None:
+    if new_owner_tid is None:
         return await message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
 
-    is_new_owner_admin = await db.admin_get(id_web, new_tid_owner)
+    is_new_owner_admin = await db.get_admin(new_owner_tid, web_id)
 
     if is_new_owner_admin is None:
         return await message.answer("❌ <b>Ошибка</b>\nНовый владелец паутины должен обладать в ней хоть какой-нибудь должностью.") # Вывод
 
-    result = await db.web_transfer_ownership(id_web, message.from_user.id, new_tid_owner)
+    result = await db.upd_web_owner(web_id, message.from_user.id, new_owner_tid)
 
     if not result:
         return await message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод

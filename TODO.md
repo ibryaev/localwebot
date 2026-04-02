@@ -6,5 +6,6 @@
 - [ ] Limit three chats for one web
 - [x] Add settings for web in "my web"-menu             ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
   - [ ] Finish panel with admins list
-- [ ] Trigger when bot added in chat
+- [x] Trigger when bot added in chat
 - [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
+- [ ] Finish "send request to my web" button callback
