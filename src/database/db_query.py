@@ -1,12 +1,16 @@
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+
 from emoji import is_emoji
+from datetime import datetime
+from random import choice
+from string import ascii_letters, digits
 
 class Database():
     def __init__(self):
         self.conn_params = {
             "host":     "localhost",
-            "fullname": "postgres",
+            "dbname":   "postgres",
             "port":     "5432",
             "user":     "postgres",
             "password": "nicetea"
@@ -17,7 +21,7 @@ class Database():
     async def connect(self):
         self.conn = await AsyncConnection.connect(
             host        = self.conn_params["host"],
-            dbname      = self.conn_params["fullname"],
+            dbname      = self.conn_params["dbname"],
             port        = self.conn_params["port"],
             user        = self.conn_params["user"],
             password    = self.conn_params["password"],
@@ -25,289 +29,323 @@ class Database():
         )
         self.cur = self.conn.cursor()
 
-    async def mkweb(self, forename: str, tid_owner: int) -> dict:
-        '''Создаёт паутину в таблице webs, а также её создателя в таблице admins'''
+    async def mkid(self, table: str) -> str:
+        '''Генерирует айди в формате "%%s%%%d%%%s%%d". Этот формат может сгенерировать 270400 уникальных айди'''
+        while True:
+            new_id = choice(ascii_letters) + choice(digits) + choice(ascii_letters) + choice(digits)
+            await self.cur.execute(f"SELECT 1 FROM {table} WHERE {table[:-1]}_id = %s", (new_id,))
+            if not await self.cur.fetchone():
+                return new_id
+
+    # users
+
+    async def mk_user(self, tid: int, username: str) -> bool:
+        '''Записывает пользователя в базу. Если он уже есть - обновляет username'''
         try:
             await self.cur.execute(
-                "INSERT INTO webs (forename, tid_owner) VALUES (%s, %s) RETURNING *",
-                (forename, tid_owner)
-            )
-
-            web = await self.cur.fetchone()
-
-            await self.cur.execute(
-                "INSERT INTO admins (tid_admin, id_web, post) VALUES (%s, %s, %s)",
-                (tid_owner, web['id_web'], "owner")
-            )
-            
-            await self.conn.commit()
-            return web
-
-        except Exception as e:
-            print(f"error: database: mkweb(): {e}")
-            await self.conn.rollback()
-            return None
-
-    async def web_get(self, tid_owner: int) -> dict:
-        '''Возвращает полную информацию о паутине, по Telegram ID её владельца'''
-        try:
-            await self.cur.execute(
-                "SELECT * FROM webs WHERE tid_owner = %s",
-                (tid_owner,)
-            )
-            web = await self.cur.fetchone()
-            return web
-
-        except Exception as e:
-            print(f"error: database: web_read(): {e}")
-            return None
-
-    async def web_get_id(self, tid_owner: int) -> int:
-        '''Возвращает ID паутины, по Telegram ID её владельца'''
-        try:
-            await self.cur.execute(
-                "SELECT id_web FROM webs WHERE tid_owner = %s",
-                (tid_owner,)
-            )
-            web = await self.cur.fetchone()
-            return web['id_web'] if web else None
-
-        except Exception as e:
-            print(f"error: database: web_get_id(): {e}")
-            return None
-
-    async def web_rename(self, id_web: int, new_forename: str, new_emoji: str) -> bool:
-        '''Переименовывает и меняет иконку паутине'''
-        if not is_emoji(new_emoji):
-            raise ValueError("new_emoji should be an emoji (unexpected?)")
-
-        try:
-            await self.cur.execute(
-                "UPDATE webs SET forename = %s, emoji = %s WHERE id_web = %s",
-                (new_forename, new_emoji, id_web)
-            )
-            await self.conn.commit()
-            return True
-
-        except Exception as e:
-            print(f"error: database: web_rename(): {e}")
-            await self.conn.rollback()
-            return False
-
-    async def web_transfer_ownership(self, id_web: int, tid_owner: int, new_tid_owner: int) -> bool:
-        '''Меняет владельца паутины'''
-        try:
-            await self.cur.execute(
-                "UPDATE webs SET tid_owner = %s WHERE id_web = %s",
-                (new_tid_owner, id_web)
-            )
-            await self.admin_edit_post(tid_owner, id_web, "helper")
-            await self.admin_edit_post(new_tid_owner, id_web, "owner")
-            await self.conn.commit()
-            return True
-
-        except Exception as e:
-            print(f"error: database: web_edit_owner(): {e}")
-            await self.conn.rollback()
-            return False
-
-    async def web_tid_chats_append(self, id_web: int, tid_chat: int) -> bool:
-        '''Добавляет Telegram ID чата в список привязанных к паутине чатов'''
-        try:
-            await self.cur.execute(
-                "UPDATE webs SET tid_chats = array_append(tid_chats, %s) WHERE id_web = %s",
-                (tid_chat, id_web)
-            )
-            await self.conn.commit()
-            return True
-    
-        except Exception as e:
-            print(f"error: database: web_chats_append(): {e}")
-            await self.conn.rollback()
-            return False
-
-    async def web_tid_chats_rm(self, id_web: int, tid_chat: int) -> bool:
-        '''Убирает Telegram ID чата из списка привязанных к паутине чатов'''
-        try:
-            await self.cur.execute(
-                "UPDATE webs SET tid_chats = array_remove(tid_chats, %s) WHERE id_web = %s",
-                (tid_chat, id_web)
-            )
-            await self.conn.commit()
-            return True
-
-        except Exception as e:
-            print(f"error: database: web_chats_rm(): {e}")
-            await self.conn.rollback()
-            return False
-
-    async def rmweb(self, id_web: int) -> bool:
-        '''Удаляет паутину'''
-        try:
-            await self.cur.execute(
-                "DELETE FROM webs WHERE id_web = %s",
-                (id_web,)
-            )
-            await self.conn.commit()
-            return True
-
-        except Exception as e:
-            print(f"error: database: rmweb(): {e}")
-            await self.conn.rollback()
-            return False
-
-
-    async def mkusername(self, tid: int, username: str = None) -> bool:
-        '''Записывает в таблицу usernames @юзернейм пользователя. Если запись уже есть - обновляет'''
-        try:
-            await self.cur.execute(
-                "INSERT INTO usernames (tid, username) VALUES (%s, %s) ON CONFLICT (tid) DO UPDATE SET username = EXCLUDED.username",
+                "INSERT INTO users (tid, username) VALUES (%s, %s) ON CONFLICT (tid) DO UPDATE SET username = EXCLUDED.username",
                 (tid, username)
             )
             await self.conn.commit()
             return True
-
         except Exception as e:
-            print(f"error: database: mkusername(): {e}")
+            print(f"error: database: mk_user(): {e}")
             await self.conn.rollback()
             return False
 
-    async def get_tid(self, username: str) -> int:
-        '''Возвращает Telegram- ID по @юзернейм'''
+    async def get_username(self, tid: int) -> dict:
+        '''Получает @юзернейм пользователя по TID'''
         try:
-            await self.cur.execute(
-                "SELECT tid FROM usernames WHERE username = %s",
-                (username,)
-            )
+            await self.cur.execute("SELECT * FROM users WHERE tid = %s", (tid,))
+            user = await self.cur.fetchone()
+
+            if user and user['username']:
+                return user['username']
+            elif user and user['username'] is None:
+                return "<code>" + user['tid'] + "</code>"
+        except Exception as e:
+            print(f"error: database: get_user(): {e}")
+            return None
+
+    async def get_tid(self, username: str) -> int:
+        '''Получает TID пользователя по @юзернейму'''
+        try:
+            await self.cur.execute("SELECT tid FROM users WHERE username = %s", (username,))
             user = await self.cur.fetchone()
             return user['tid'] if user else None
-
         except Exception as e:
             print(f"error: database: get_tid(): {e}")
             return None
 
-    async def get_username(self, tid: int) -> str:
-        '''Возвращает Telegram- @юзернейм по ID'''
-        try:
-            await self.cur.execute(
-                "SELECT username FROM usernames WHERE tid = %s",
-                (tid,)
-            )
-            user = await self.cur.fetchone()
-            return user['username'] if user else None
+    # webs
 
+    async def mk_web(self, forename: str, owner_tid: int) -> dict:
+        '''Генерирует уникальный web_id, создает паутину и делает создателя владельцем'''
+        try:
+            web_id = await self.mkid("webs")
+
+            await self.cur.execute(
+                "INSERT INTO webs (web_id, forename, owner_tid) VALUES (%s, %s, %s) RETURNING *",
+                (web_id, forename, owner_tid)
+            )
+            web = await self.cur.fetchone()
+
+            await self.mk_admin(owner_tid, web_id, "owner")
+            await self.conn.commit()
+            return web
         except Exception as e:
-            print(f"error: database: get_username(): {e}")
+            print(f"error: database: mk_web(): {e}")
+            await self.conn.rollback()
             return None
 
+    async def get_web(self, web_id: str) -> dict:
+        '''Получает инфо о паутине по её ID'''
+        try:
+            await self.cur.execute("SELECT * FROM webs WHERE web_id = %s", (web_id,))
+            return await self.cur.fetchone()
+        except Exception as e:
+            print(f"error: database: get_web(): {e}")
+            return None
 
-    async def mkchat(self, tid_chat: int, id_web: int, tid_owner: int, username: str = None) -> bool:
+    async def get_web_id(self, owner_tid: int) -> dict:
+        '''Получает инфо о паутине по TID её владельца'''
+        try:
+            await self.cur.execute("SELECT * FROM webs WHERE owner_tid = %s", (owner_tid,))
+            return await self.cur.fetchone()
+        except Exception as e:
+            print(f"error: database: get_web_id(): {e}")
+            return None
+
+    # async def get_web_owner(self, owner_tid: int) -> dict:
+    #     '''Ищет паутину, где данный пользователь является владельцем'''
+    #     try:
+    #         await self.cur.execute("SELECT * FROM webs WHERE owner_tid = %s", (owner_tid,))
+    #         return await self.cur.fetchone()
+    #     except Exception as e:
+    #         print(f"error: database: get_web_owner(): {e}")
+    #         return None
+
+    async def upd_web_name(self, web_id: str, forename: str, emoji: str) -> bool:
+        '''Обновляет имя и эмодзи паутины'''
+        if emoji and not is_emoji(emoji):
+            raise ValueError("emoji should be emoji (wow)")
+        if len(forename) > 32:
+            raise ValueError("forename cannot be longer than 32 symbols")
+        
         try:
             await self.cur.execute(
-                "INSERT INTO chats (tid_chat, id_web, tid_owner) VALUES (%s, %s, %s) RETURNING *",
-                (tid_chat, id_web, tid_owner)
+                "UPDATE webs SET forename = %s, emoji = %s WHERE web_id = %s",
+                (forename, emoji, web_id)
+            )
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_web_name(): {e}")
+            await self.conn.rollback()
+            return False
+
+    async def upd_web_owner(self, web_id: str, old_owner_tid: int, new_owner_tid: int) -> bool:
+        '''Передает права владения паутиной другому админу'''
+        try:
+            await self.cur.execute(
+                "UPDATE webs SET owner_tid = %s WHERE web_id = %s",
+                (new_owner_tid, web_id)
+            )
+            await self.upd_admin_post(old_owner_tid, web_id, "helper")
+            await self.upd_admin_post(new_owner_tid, web_id, "owner")
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_web_owner(): {e}")
+            await self.conn.rollback()
+            return False
+
+    async def rm_web(self, web_id: str) -> bool:
+        '''Удаляет паутину. Связанные чаты и админы удалятся по CASCADE'''
+        try:
+            await self.cur.execute("DELETE FROM webs WHERE web_id = %s", (web_id,))
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: rm_web(): {e}")
+            await self.conn.rollback()
+            return False
+
+    # chats
+
+    async def mk_chat(self, chat_tid: int, web_id: str, owner_tid: int) -> dict:
+        '''Создает чат и добавляет его в список чатов паутины'''
+        try:
+            await self.cur.execute(
+                "INSERT INTO chats (chat_tid, web_id, owner_tid) VALUES (%s, %s, %s) RETURNING *",
+                (chat_tid, web_id, owner_tid)
             )
             chat = await self.cur.fetchone()
 
-            await self.web_tid_chats_append(id_web, tid_chat)
-            await self.mkusername(tid_chat, username)
+            await self.cur.execute(
+                "UPDATE webs SET chats_tid = array_append(chats_tid, %s) WHERE web_id = %s",
+                (chat_tid, web_id)
+            )
             await self.conn.commit()
             return chat
-
         except Exception as e:
-            print(f"error: database: mkchat(): {e}")
+            print(f"error: database: mk_chat(): {e}")
             await self.conn.rollback()
             return None
 
-    async def chat_edit_tid_owner(self, tid_chat: int, new_tid_owner: int) -> bool:
+    async def get_chat(self, chat_tid: str) -> dict:
+        '''Получает инфо о чате по её TID'''
+        try:
+            await self.cur.execute("SELECT * FROM chats WHERE chat_tid = %s", (chat_tid,))
+            return await self.cur.fetchone()
+        except Exception as e:
+            print(f"error: database: get_chat(): {e}")
+            return None
+
+    async def upd_chat_owner(self, chat_tid: int, new_owner_tid: int) -> bool:
+        '''Меняет владельца конкретного чата'''
         try:
             await self.cur.execute(
-                "UPDATE chats SET tid_owner = %s WHERE tid_chat = %s",
-                (new_tid_owner, tid_chat)
+                "UPDATE chats SET owner_tid = %s WHERE chat_tid = %s",
+                (new_owner_tid, chat_tid)
             )
             await self.conn.commit()
             return True
-
         except Exception as e:
-            print(f"error: database: chat_edit_tid_owner(): {e}")
+            print(f"error: database: upd_chat_owner(): {e}")
             await self.conn.rollback()
             return False
 
-    async def rmchat(self, tid_chat: int, id_web: int) -> bool:
+    async def rm_chat(self, chat_tid: int, web_id: str) -> bool:
+        '''Удаляет чат и убирает его из массива в webs'''
         try:
+            await self.cur.execute("DELETE FROM chats WHERE chat_tid = %s", (chat_tid,))
+            
+            # Вычищаем из массива webs.chats_tid
             await self.cur.execute(
-                "DELETE FROM chats WHERE tid_chat = %s",
-                (tid_chat,)
+                "UPDATE webs SET chats_tid = array_remove(chats_tid, %s) WHERE web_id = %s",
+                (chat_tid, web_id)
             )
-            await self.web_tid_chats_rm(id_web, tid_chat)
             await self.conn.commit()
             return True
-
         except Exception as e:
-            print(f"error: databasey: rmchat(): {e}")
+            print(f"error: database: rm_chat(): {e}")
             await self.conn.rollback()
             return False
 
+    # admins
 
-    async def mkadmin(self, tid_admin: int, id_web: int, post: str, username: str = None) -> dict:
-        '''Создаёт администратора в таблице admins'''
+    async def mk_admin(self, admin_tid: int, web_id: str, post: str) -> dict:
+        '''Назначает человека админом в конкретной сетке с конкретной ролью'''
+        admin_id = None
+
         try:
-            await self.cur(
-                "INSERT INTO admins (VALUES tid_admin, id_web, post) VALUES (%s, %s, %s) RETURNING *",
-                (tid_admin, id_web, post)
+            admin_id = await self.mkid("admins")
+
+            await self.cur.execute(
+                "INSERT INTO admins (admin_id, admin_tid, web_id, post) VALUES (%s, %s, %s, %s) RETURNING *",
+                (admin_id, admin_tid, web_id, post)
             )
             admin = await self.cur.fetchone()
-
-            await self.mkusername(tid_admin, username)
             await self.conn.commit()
             return admin
-
         except Exception as e:
-            print(f"error: database: mkadmin(): {e}")
+            print(f"error: database: mk_admin(): {e}")
             await self.conn.rollback()
             return None
 
-    async def admin_get(self, id_web: int, tid_admin: int) -> str:
-        '''Возвращает полную информацию об админе из конкретной сетки, по  его Telegram ID'''
+    async def get_admin(self, admin_tid: int, web_id: str) -> dict:
+        '''Получает данные админа в конкретной паутине'''
         try:
             await self.cur.execute(
-                "SELECT * FROM admins WHERE id_web = %s AND tid_admin = %s",
-                (id_web, tid_admin)
+                "SELECT * FROM admins WHERE admin_tid = %s AND web_id = %s",
+                (admin_tid, web_id)
             )
-            admin = await self.cur.fetchone()
-            return admin
-
+            return await self.cur.fetchone()
         except Exception as e:
-            print(f"error: database: admin_get(): {e}")
+            print(f"error: database: get_admin(): {e}")
             return None
 
-    async def admin_edit_post(self, tid_admin: int, id_web: int, new_post: str) -> bool:
-        if new_post not in ('owner', 'helper', 'admin', 'moder'):
-            raise ValueError("Unknows post type")
+    async def get_admin_webs(self, admin_tid: int) -> list:
+        '''Получает список всех сеток, где пользователь является админом'''
+        try:
+            await self.cur.execute("SELECT * FROM admins WHERE admin_tid = %s", (admin_tid,))
+            return await self.cur.fetchall()
+        except Exception as e:
+            print(f"error: database: get_admin_webs(): {e}")
+            return []
 
+    async def upd_admin_post(self, admin_tid: int, web_id: str, new_post: str) -> bool:
+        '''Обновляет должность админа в конкретной сетке'''
         try:
             await self.cur.execute(
-                "UPDATE admins SET post = %s WHERE id_web = %s AND tid_admin = %s",
-                (new_post, id_web, tid_admin)
+                "UPDATE admins SET post = %s WHERE admin_tid = %s AND web_id = %s",
+                (new_post, admin_tid, web_id)
             )
             await self.conn.commit()
             return True
-
         except Exception as e:
-            print(f"error: database: admin_edit_post(): {e}")
+            print(f"error: database: upd_admin_post(): {e}")
             await self.conn.rollback()
             return False
 
-    async def rmadmin(self, tid_admin: int, id_web: int) -> bool:
+    async def rm_admin(self, admin_tid: int, web_id: str) -> bool:
+        '''Снимает админа с должности в конкретной сетке'''
         try:
             await self.cur.execute(
-                "DELETE FROM admins WHERE id_web = %s AND tid_admin = %s",
-                (id_web, tid_admin)
+                "DELETE FROM admins WHERE admin_tid = %s AND web_id = %s",
+                (admin_tid, web_id)
             )
             await self.conn.commit()
             return True
-
         except Exception as e:
-            print(f"error: databasey: rmadmin(): {e}")
+            print(f"error: database: rm_admin(): {e}")
+            await self.conn.rollback()
+            return False
+
+    # restrs
+
+    async def mk_restr(self, web_id: str, user_tid: int, restr_type: str, admin_tid: int, reason: str = None, until: datetime = None) -> dict:
+        '''Создает запись о бане/муте в конкретной сетке'''
+        if restr_type not in ('ban', 'mute'):
+            raise ValueError("restrs_type must be in ('ban', 'mute')")
+
+        try:
+            restr_id = await self.mkid("restrs")
+
+            await self.cur.execute(
+                "INSERT INTO restrs (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until) VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
+                (restr_id, web_id, user_tid, restr_type, admin_tid, reason, until)
+            )
+            restr = await self.cur.fetchone()
+            await self.conn.commit()
+            return restr
+        except Exception as e:
+            print(f"error: database: mk_restr(): {e}")
+            await self.conn.rollback()
+            return None
+
+    async def upd_restr_until(self, restr_id: int, new_until: datetime) -> bool:
+        '''Изменяет время истечения наказания'''
+        try:
+            await self.cur.execute(
+                "UPDATE restrs SET date_until = %s WHERE restr_id = %s",
+                (new_until, restr_id)
+            )
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_restr_until(): {e}")
+            await self.conn.rollback()
+            return False
+
+    async def rm_restr(self, restr_id: int) -> bool:
+        '''Удаляет наказание'''
+        try:
+            await self.cur.execute("DELETE FROM restrs WHERE restr_id = %s", (restr_id,))
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: rm_restr(): {e}")
             await self.conn.rollback()
             return False
