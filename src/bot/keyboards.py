@@ -17,10 +17,12 @@ async def add_to_chat() -> InlineKeyboardMarkup:
     ])
 
 async def main_menu() -> ReplyKeyboardMarkup:
+    emoji = await rndemoji()
+
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text="🗂️ Моя паутина")],
-        [KeyboardButton(text=f"{await rndemoji()} Создать паутину", style="success"), #
-         KeyboardButton(text="➕ Добавить в чат", style="primary")],                  # 
+        [KeyboardButton(text=f"{emoji} Создать паутину", style="success"),
+         KeyboardButton(text="➕ Добавить в чат", style="primary")],
         [KeyboardButton(text="📚 Команды")]
     ],
     resize_keyboard=True,
@@ -31,11 +33,11 @@ async def web_settings() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✏️ Переименовать", callback_data="rename")],
         [InlineKeyboardButton(text="🛡️ Администрация", callback_data="admins")],
-        [InlineKeyboardButton(text="📤 Передать", callback_data="transfer", style="danger"), #
-         InlineKeyboardButton(text="🗑️ Удалить", callback_data="remove", style="danger")]    #
+        [InlineKeyboardButton(text="📤 Передать", callback_data="transfer", style="danger"),
+         InlineKeyboardButton(text="🗑️ Удалить", callback_data="remove", style="danger")]
     ])
 
-async def send_invite_to_web(user_id: int) -> InlineKeyboardMarkup:
+async def accept_invite_web(user_tid: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="➕ Отправить предложение", callback_data=f"send_invite_{user_id}")]
+        [InlineKeyboardButton(text="➕ Принять", callback_data=f"accept_invite_{user_tid}")]
     ])
