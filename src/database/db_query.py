@@ -107,13 +107,13 @@ class Database():
             print(f"error: database: get_web(): {e}")
             return None
 
-    async def get_web_id(self, owner_tid: int) -> dict:
+    async def get_web_tid(self, owner_tid: int) -> dict:
         '''Получает инфо о паутине по TID её владельца'''
         try:
             await self.cur.execute("SELECT * FROM webs WHERE owner_tid = %s", (owner_tid,))
             return await self.cur.fetchone()
         except Exception as e:
-            print(f"error: database: get_web_id(): {e}")
+            print(f"error: database: get_web_tid(): {e}")
             return None
 
     # async def get_web_owner(self, owner_tid: int) -> dict:
@@ -157,6 +157,20 @@ class Database():
             return True
         except Exception as e:
             print(f"error: database: upd_web_owner(): {e}")
+            await self.conn.rollback()
+            return False
+
+    async def upd_web_heir(self, web_id: str, heir_tid: int) -> bool:
+        '''Назначает наследника на сетку'''
+        try:
+            await self.cur.execute(
+                "UPDATE webs SET heir_tid = %s WHERE web_id = %s",
+                (heir_tid, web_id)
+            )
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_web_heir(): {e}")
             await self.conn.rollback()
             return False
 
@@ -255,7 +269,7 @@ class Database():
             return None
 
     async def get_admin(self, admin_tid: int, web_id: str) -> dict:
-        '''Получает данные админа в конкретной паутине'''
+        '''Получает данные админа в конкретной паутине по его TID'''
         try:
             await self.cur.execute(
                 "SELECT * FROM admins WHERE admin_tid = %s AND web_id = %s",
@@ -266,13 +280,31 @@ class Database():
             print(f"error: database: get_admin(): {e}")
             return None
 
-    async def get_admin_webs(self, admin_tid: int) -> list:
-        '''Получает список всех сеток, где пользователь является админом'''
+    async def get_admin_id(self, admin_id: str) -> dict:
+        '''Получает данные админа, находя его по уникальному ID'''
         try:
-            await self.cur.execute("SELECT * FROM admins WHERE admin_tid = %s", (admin_tid,))
+            await self.cur.execute("SELECT * FROM admins WHERE admin_id = %s", (admin_id,))
+            return await self.cur.fetchone()
+        except Exception as e:
+            print(f"error: database: get_admin_id(): {e}")
+            return None
+
+    # async def get_admin_webs(self, admin_tid: int) -> list:
+    #     '''Получает список всех сеток, где пользователь является админом'''
+    #     try:
+    #         await self.cur.execute("SELECT * FROM admins WHERE admin_tid = %s", (admin_tid,))
+    #         return await self.cur.fetchall()
+    #     except Exception as e:
+    #         print(f"error: database: get_admin_webs(): {e}")
+    #         return []
+
+    async def get_web_admins(self, web_id: str) -> list[dict]:
+        '''Получает список всех админов из данной сетки'''
+        try:
+            await self.cur.execute("SELECT * FROM admins WHERE web_id = %s", (web_id,))
             return await self.cur.fetchall()
         except Exception as e:
-            print(f"error: database: get_admin_webs(): {e}")
+            print(f"error: database: get_web_admins(): {e}")
             return []
 
     async def upd_admin_post(self, admin_tid: int, web_id: str, new_post: str) -> bool:
