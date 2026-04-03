@@ -48,7 +48,7 @@ async def cmd_mk_web(message: Message):
     await db.mk_user(user.id, user.username)
 
     user = message.from_user
-    web = await db.get_web_id(user.id)
+    web = await db.get_web_tid(user.id)
 
     if web is not None:
         return await message.answer("❌ <b>Ошибка</b>\nУ Вас уже есть паутина.") # Вывод
@@ -90,7 +90,7 @@ async def cmd_my_web(message: Message):
     user = message.from_user
     await db.mk_user(user.id, user.username)
 
-    web = await db.get_web_id(message.from_user.id)
+    web = await db.get_web_tid(message.from_user.id)
 
     if web is None:
         return await message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
@@ -103,7 +103,10 @@ async def cmd_my_web(message: Message):
         seq = 1
         for cid in chats_tid:
             chat = await bot.get_chat(cid)
-            chats_tid_str += f"<b>{seq}.</b> " + f"<a href='https://t.me/{chat.username}'>{chat.full_name}</a>\n"
+            chat_username = chat.username
+            chat_full_name = chat.full_name
+            chat_name = f"<a href='https://t.me/{chat_username}'>{chat_full_name}</a>" if chat_username else chat_full_name
+            chats_tid_str += f"<b>{seq}.</b> " + chat_name + "\n"
             seq += 1
 
     # Вывод
@@ -174,7 +177,7 @@ async def cmd_mk_chat(message: Message):
     chat = await db.get_chat(chat_tid)
 
     if chat is None:
-        web = await db.get_web_id(user_id)
+        web = await db.get_web_tid(user_id)
 
         if web is None:
             return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывыд
@@ -203,7 +206,7 @@ async def cmd_mk_chat(message: Message):
         # )
 
     # Вывод
-    web = await db.get_web_id(chat_owner_tid)
+    web = await db.get_web_tid(chat_owner_tid)
 
     emoji = web['emoji'] or await rndemoji()
     forename = web['forename']

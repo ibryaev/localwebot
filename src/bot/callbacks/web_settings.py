@@ -13,13 +13,13 @@ rt = Router(name="callbacks")
 punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^`{|}~ """
 
 @rt.callback_query(F.data == "rename")
-async def cb_rename(callback: CallbackQuery, state: FSMContext):
+async def rename(callback: CallbackQuery, state: FSMContext):
     await state.set_state(WebRename.new_forename)
     await callback.message.edit_text("Введите новое имя паутины") # Вывод
     return await callback.answer()
 
 @rt.message(WebRename.new_forename)
-async def cb_msg_new_forename(message: Message, state: FSMContext):
+async def msg_forename(message: Message, state: FSMContext):
     forename = replace_emoji(message.text, "")
 
     if len(forename) > 32:
@@ -38,7 +38,7 @@ async def cb_msg_new_forename(message: Message, state: FSMContext):
     await message.answer("Отправьте эмодзи, который будет значком этой паутины") # Вывод
 
 @rt.message(WebRename.new_emoji)
-async def cb_msg_new_emoji(message: Message, state: FSMContext):
+async def msg_emoji(message: Message, state: FSMContext):
     emoji = message.text
 
     if not is_emoji(emoji):
@@ -112,145 +112,9 @@ async def cb_admin(callback: CallbackQuery):
     )
     return await callback.answer()
 
-@rt.callback_query(F.data.startswith("up_"))
-async def cb_admin_up(callback: CallbackQuery):
-    admin_id = callback.data.split("_")[-1]
-    admin = await db.get_admin_id(admin_id)
-    admin_tid = admin['admin_td']
-
-    admin_t = await bot.get_chat(admin_tid)
-    web_id = admin['web_id']
-    admin_first_name = admin_t.first_name
-    post = admin['post']
-
-    if post == "owner":
-        return await callback.answer(
-            # Вывод
-            text="Выше некуда",
-            show_alert=True
-        )
-    elif post == "helper":
-        return await callback.answer(
-            # Вывод
-            text=(
-                "Одна сетка — один владелец.\n"
-                f"Если Вы хотите передать {admin_first_name} правда на сетку, "
-                "то нажмите на соответствующую кнопку."
-            ),
-            show_alert=True
-        )
-    elif post == "admin":
-        result = await db.upd_admin_post(admin_tid, web_id, "helper")
-
-        if not result:
-            return await callback.message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
-
-        return await callback.answer(
-            # Вывод
-            text=(
-                f"🛡️ Повышение {admin_first_name}\n"
-                f"{admin_type_str[admin_type_int[2]]} → {admin_type_str[admin_type_int[3]]}"
-            ),
-            show_alert=True
-        )
-    elif post == "moder":
-        result = await db.upd_admin_post(admin_tid, web_id, "admin")
-
-        if not result:
-            return await callback.message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
-
-        return await callback.answer(
-            # Вывод
-            text=(
-                f"🛡️ Повышение {admin_first_name}\n"
-                f"{admin_type_str[admin_type_int[1]]} → {admin_type_str[admin_type_int[2]]}"
-            ),
-            show_alert=True
-        )
-
-@rt.callback_query(F.data.startswith("down_"))
-async def cb_admin_up(callback: CallbackQuery):
-    admin_id = callback.data.split("_")[-1]
-    admin = await db.get_admin_id(admin_id)
-    admin_tid = admin['admin_td']
-
-    admin_t = await bot.get_chat(admin_tid)
-    web_id = admin['web_id']
-    admin_first_name = admin_t.first_name
-    post = admin['post']
-
-    if post == "owner":
-        return await callback.answer(
-            # Вывод
-            text=(
-                "У сетки обязан быть владелец.\n"
-                "Если Вы хотите отставить полномочия, то передайте права определённому человеку "
-                "или напишите одноимённую команду, если у Вас назначен наследник."
-            ),
-            show_alert=True
-        )
-    elif post == "helper":
-        return await callback.answer(
-            # Вывод
-            text=(
-                "Одна сетка — один владелец.\n"
-                f"Если Вы хотите передать {admin_first_name} правда на сетку, "
-                "то нажмите на соответствующую кнопку."
-            ),
-            show_alert=True
-        )
-    elif post == "admin":
-        result = await db.upd_admin_post(admin_tid, web_id, "helper")
-
-        if not result:
-            return await callback.message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
-
-        return await callback.answer(
-            # Вывод
-            text=(
-                f"🛡️ Повышение {admin_first_name}\n"
-                f"{admin_type_str[admin_type_int[2]]} → {admin_type_str[admin_type_int[3]]}"
-            ),
-            show_alert=True
-        )
-    elif post == "moder":
-        result = await db.upd_admin_post(admin_tid, web_id, "admin")
-
-        if not result:
-            return await callback.message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
-
-        return await callback.answer(
-            # Вывод
-            text=(
-                f"🛡️ Повышение {admin_first_name}\n"
-                f"{admin_type_str[admin_type_int[1]]} → {admin_type_str[admin_type_int[2]]}"
-            ),
-            show_alert=True
-        )
-
-
-@rt.callback_query(F.data == "remove")
-async def cb_remove(callback: CallbackQuery):
-    user_id = callback.from_user.id
-    web = await db.get_web_tid(user_id)
-
-    if web is None:
-        return await callback.message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
-
-    if web['chats_tid']:
-        return await callback.message.answer("❌ <b>Ошибка</b>\nПеред удалением сетки, Вам нужно удалить из неё все чаты.") # Вывод
-
-    result = await db.rm_web(web['web_id'])
-
-    if not result:
-        return await callback.message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
-
-    await callback.message.edit_text("🗑️ Вы <b>безвозвратно удалили</b> эту паутину!") # Вывод
-    return await callback.answer()
-
 
 @rt.callback_query(F.data == "transfer")
-async def cb_transfer(callback: CallbackQuery, state: FSMContext):
+async def transfer(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
     web = await db.get_web_tid(user_id)
 
@@ -292,3 +156,23 @@ async def cb_msg_new_tid_owner(message: Message, state: FSMContext):
         return await message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
 
     await message.answer("📤 Теперь эта паутина <b>не принадлежит</b> Вам!") # Вывод
+
+
+@rt.callback_query(F.data == "remove")
+async def remove(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    web = await db.get_web_tid(user_id)
+
+    if web is None:
+        return await callback.message.answer("❌ Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
+
+    if web['chats_tid']:
+        return await callback.message.answer("❌ <b>Ошибка</b>\nПеред удалением сетки, Вам нужно удалить из неё все чаты.") # Вывод
+
+    result = await db.rm_web(web['web_id'])
+
+    if not result:
+        return await callback.message.answer("❌ <b>Непредвиденная ошибка</b>\nПопробуйте позже.") # Вывод
+
+    await callback.message.edit_text("🗑️ Вы <b>безвозвратно удалили</b> эту паутину!") # Вывод
+    return await callback.answer()

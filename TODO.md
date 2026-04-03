@@ -9,4 +9,4 @@
 - [x] Trigger when bot added in chat                    ([dc6e6a0](https://github.com/ibryaev/localwebot/commit/dc6e6a01ebb56c94711c8fae08cda0d3269ceac0))
 - [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
 - [ ] Finish "send request to my web" button callback
-- [x] Add heir system
+- [x] Add heir system                                   ([cf60500](https://github.com/ibryaev/localwebot/commit/cf60500e6e3e21e932e928031f04bb6d8c0bc020))
