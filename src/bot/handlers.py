@@ -43,6 +43,14 @@ async def introduce(message: Message):
         reply_markup=await kb.add_to_chat()
     )
 
+#########################
+#   Главное reply-меню  #
+#   kb.main_menu()      #
+#########################
+
+# Создание паутины
+# В качестве первончального названия паутины
+# выступает full_name создателя
 
 @rt.message(F.text[2:] == "Создать паутину")
 @rt.message(F.text[3:] == "Создать паутину")
@@ -77,6 +85,10 @@ async def mk_web(message: Message):
         reply_markup=await kb.add_to_chat()
     )
 
+# Добавление бота в чат
+# По сути, главная функция этой кнопки - быть наполнением,
+# просто чтобы меню красиво смотрелось
+
 @rt.message(F.text == "➕ Добавить в чат")
 async def add_to_chat(message: Message):
     user_t = message.from_user
@@ -87,6 +99,10 @@ async def add_to_chat(message: Message):
         text="📥 Добавляй бота в нужные чаты и пиши там команду <code>паутина</code>",
         reply_markup=await kb.add_to_chat()
     )
+
+# Настройка паутины
+# Выводит список чатов, который входят в паутину, 
+# и inline-клавиатуру, с кнопками для настройки своей паутины
 
 @rt.message(F.text == "🗂️ Моя паутина")
 async def get_web(message: Message):
@@ -104,7 +120,7 @@ async def get_web(message: Message):
     chats_tid = web['chats_tid']
     chats_tid_str = ""
     if not chats_tid:
-        chats_tid_str = "В этой сетке нет чатов."
+        chats_tid_str = "В этой паутине нет чатов."
     else:
         seq = 1
         for chat_tid in chats_tid:
@@ -132,6 +148,9 @@ async def get_web(message: Message):
         reply_markup=await kb.web_settings() 
     )
 
+#################
+#   Триггеры    #
+#################
 
 @rt.chat_member(ChatMemberUpdatedFilter(JOIN_TRANSITION))
 async def on_join_transition(event: ChatMemberUpdated) -> None:
@@ -169,6 +188,19 @@ async def on_my_join_transition(event: ChatMemberUpdated):
         )
     )
 
+#####################################
+#   Команды для групповых чатов     #
+#####################################
+
+# Выводит информацию о паутине, в которой состоит этот чат
+# Но если чат не состоит ни в какой паутине, то:
+# 1. Если у человека, который прописывает эту команду, 
+#    тоже нет паутины - ответ что чат свободен;
+# 2. !1. - к ответу добавляет клавиатура (с одной кнопкой),
+#    нажать на которую может только владелец этого чата.
+#    Эта кнопка включит этот чат в паутину этого человека;
+# 3. Если команду прописал сам владелец чата и у него есть своя паутина -
+#    мгновенно включает его чат в его паутину.
 
 @rt.message(F.text == "паутина")
 async def cmd_mk_chat(message: Message):
@@ -200,7 +232,7 @@ async def cmd_mk_chat(message: Message):
             owner_link = f"@{chat_owner_tusername}" if chat_owner_tusername else chat_owner_tfull_name
             return await message.reply(
                 # Вывод
-                text=f"{owner_link}, этот пользователь предлагает Вам включить свой чат в <b>его</b> сетку.",
+                text=f"{owner_link}, этот пользователь предлагает Вам включить свой чат в <b>его</b> паутину.",
                 reply_markup=await kb.accept_invite_web(user_tid)
             )
 
@@ -209,7 +241,7 @@ async def cmd_mk_chat(message: Message):
         if chat is None:
             return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-        return await message.reply(f"✅ Чат <b>{chat_t.title}</b> успешно добавлен в сетку <b>{web['forename']}</b>!") # Вывод
+        return await message.reply(f"✅ Чат <b>{chat_t.title}</b> успешно добавлен в паутину <b>{web['forename']}</b>!") # Вывод
 
     # Вывод
     web_id = chat['web_id']

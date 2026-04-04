@@ -9,10 +9,21 @@ from bot.data import *
 import bot.handlers as handlers
 
 rt = Router(name="callbacks")
+
+###########################
+#   Главное меню          #
+#   управления паутиной   #
+#   (kb.web_settings())   #
+###########################
+
 punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^`{|}~ """
 cyrillic_lowercase = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
 cyrillic_uppercase = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'
 cyrillic_letters = cyrillic_lowercase + cyrillic_uppercase
+
+# Переименование паутины
+# Два шага FSM: просим новое имя, потом эмодзи,
+# и после записываем новые данные в БД
 
 @rt.callback_query(F.data == "rename")
 async def rename(callback: CallbackQuery, state: FSMContext):
@@ -28,7 +39,7 @@ async def msg_rename_forename(message: Message, state: FSMContext):
         return await message.answer(
             # Вывод
             text=(
-                 "Имя сетки не должно быть длинее 32 символов. Попробуйте снова."
+                 "Имя паутины не должно быть длинее 32 символов. Попробуйте снова."
                 f"Может <code>{forename[:32]}</code>?"
             )
         )
@@ -64,6 +75,10 @@ async def msg_rename_emoji(message: Message, state: FSMContext):
 
     await handlers.get_web(message) # Вывод
 
+# Удаление паутины
+# но если она ещё содержит какие-то чаты - отвечаем ошибкой
+# Да, можно удалять и патину, и чаты и не выводить никакие ошибки,
+# но я специально сделал именно так
 
 @rt.callback_query(F.data == "remove")
 async def remove(callback: CallbackQuery):
@@ -74,7 +89,7 @@ async def remove(callback: CallbackQuery):
         return await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
     if web['chats_tid']:
-        return await callback.message.answer("Перед удалением сетки, Вам нужно исключить из неё все чаты.") # Вывод
+        return await callback.message.answer("Перед удалением паутины, Вам нужно исключить из неё все чаты.") # Вывод
 
     result = await db.rm_web(web['web_id'])
 
@@ -84,6 +99,11 @@ async def remove(callback: CallbackQuery):
     await callback.message.edit_text("🗑️ Вы <b>безвозвратно удалили</b> эту паутину!") # Вывод
     return await callback.answer()
 
+# Передача владения над паутиной
+# Пользователь вводит юзернейм кому хочет передать свою паутину (один шаг FSM),
+# бот проверяет что такой человек вообще существует (по таблице users).
+# Если такой человек существует - меняем данные в базе данных.
+# punctuation и cyrillic_letters нужны просто чтобы не делать очевидно неправильные запросы
 
 @rt.callback_query(F.data == "transfer")
 async def transfer(callback: CallbackQuery, state: FSMContext):
@@ -136,6 +156,12 @@ async def cb_msg_new_tid_owner(message: Message, state: FSMContext):
 
     await message.answer("📤 Теперь эта паутина <b>не принадлежит</b> Вам!") # Вывод
 
+#########################
+#   Остальные коллбэки  #
+#########################
+
+# Владелец чата принял запрос на вступление в чужую паутину
+# Также делает владельца этого чата хелпером в этой паутине
 
 @rt.callback_query(F.data.startswith("accept_invite_"))
 async def accept_invite(callback: CallbackQuery):
