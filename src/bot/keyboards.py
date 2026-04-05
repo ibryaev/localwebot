@@ -7,12 +7,17 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder#, ReplyKeyboardBuilder
 from config import *
 from utils import *
 
+async def go_back() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Обратно", callback_data="get_web", style="primary")]
+    ])
+
 async def add_to_chat() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text="Добавить в чат",
             url=f"https://t.me/{BOT_USERNAME}?startgroup",
-            style='primary'
+            style="primary"
         )]
     ])
 
@@ -59,13 +64,20 @@ async def admins(admins: list[dict]) -> InlineKeyboardMarkup:
                 callback_data=f"admin_{admin['admin_id']}"
             ))
 
+    inline_keyboard.add(InlineKeyboardButton(
+        text="⬅️ Обратно",
+        callback_data="get_web",
+        style="primary"
+    ))
+
     return inline_keyboard.adjust(3).as_markup()
 
 async def admin(admin_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬆️ Повысить", callback_data=f"up_{admin_id}", style="success"),   # 1
-         InlineKeyboardButton(text="⬇️ Понизить", callback_data=f"down_{admin_id}", style="danger")], # 1
-        [InlineKeyboardButton(text="🔥 Снять", callback_data=f"transfer_{admin_id}")],                # 2
-        [InlineKeyboardButton(text="👑 Сделать наследником", callback_data=f"heir_{admin_id}"),       # 3
-         InlineKeyboardButton(text="📤 Передать права", callback_data=f"transfer_{admin_id}")]        # 3
+        [InlineKeyboardButton(text="⬆️ Повысить", callback_data=f"up_{admin_id}", style="success"),  # 1
+         InlineKeyboardButton(text="⬇️ Понизить", callback_data=f"down_{admin_id}", style="danger"), # 1
+         InlineKeyboardButton(text="🔥 Снять", callback_data=f"fire_{admin_id}", style="danger")],   # 1
+        [InlineKeyboardButton(text="👑 Сделать наследником", callback_data=f"heir_{admin_id}"),      # 2
+         InlineKeyboardButton(text="📤 Передать права", callback_data=f"transfer_{admin_id}")],      # 2
+        [InlineKeyboardButton(text="⬅️ Обратно", callback_data="admins", style="primary")]           # 3
     ])

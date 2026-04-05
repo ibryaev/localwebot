@@ -1,12 +1,13 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from emoji import replace_emoji, is_emoji
+from asyncio import sleep
 
 from config import *
 from utils import *
-from bot.data import *
-import bot.handlers as handlers
+import bot.keyboards as kb
 
 rt = Router(name="callbacks")
 
@@ -16,6 +17,30 @@ rt = Router(name="callbacks")
 #   (kb.web_settings())   #
 ###########################
 
+class WebRename(StatesGroup):
+    forename = State()
+    emoji = State()
+class WebTransferOwnership(StatesGroup):
+    owner_tid = State()
+
+admin_type_str = {
+    "owner": "Владелец",
+    "helper": "Хелпер",
+    "admin": "Админ",
+    "moder": "Модер"
+}
+admin_type_intstr = {
+    4: "owner",
+    3: "helper",
+    2: "admin",
+    1: "moder"
+}
+admin_type_strint = {
+    "owner": 4,
+    "helper": 3,
+    "admin": 2,
+    "moder": 1
+}
 punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^`{|}~ """
 cyrillic_lowercase = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
 cyrillic_uppercase = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'
@@ -27,12 +52,14 @@ cyrillic_letters = cyrillic_lowercase + cyrillic_uppercase
 
 @rt.callback_query(F.data == "rename")
 async def rename(callback: CallbackQuery, state: FSMContext):
-    await state.set_state(WebRename.new_forename)
-    await callback.message.edit_text("Введите новое имя паутины") # Вывод
+    await state.set_state(WebRename.forename)
+
+    # Вывод
+    await callback.message.edit_text("Введите новое имя паутины")
     return await callback.answer()
 
-@rt.message(WebRename.new_forename)
-async def msg_rename_forename(message: Message, state: FSMContext):
+@rt.message(WebRename.forename)
+async def rename_msg_forename(message: Message, state: FSMContext):
     forename = replace_emoji(message.text, "")
 
     if len(forename) > 32:
@@ -45,12 +72,12 @@ async def msg_rename_forename(message: Message, state: FSMContext):
         )
 
     await state.update_data(forename=forename)
-    await state.set_state(WebRename.new_emoji)
+    await state.set_state(WebRename.emoji)
 
     await message.answer("Отправьте эмодзи, который будет значком этой паутины") # Вывод
 
-@rt.message(WebRename.new_emoji)
-async def msg_rename_emoji(message: Message, state: FSMContext):
+@rt.message(WebRename.emoji)
+async def rename_msg_emoji(message: Message, state: FSMContext):
     emoji = message.text
 
     if not is_emoji(emoji):
@@ -58,12 +85,12 @@ async def msg_rename_emoji(message: Message, state: FSMContext):
 
     data = await state.get_data()
 
-    user_id = message.from_user.id
+    user_tid = message.from_user.id
     forename = data['forename']
 
     await state.clear()
 
-    web = await db.get_web_tid(user_id)
+    web = await db.get_web_tid(user_tid)
 
     if web is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
@@ -73,7 +100,17 @@ async def msg_rename_emoji(message: Message, state: FSMContext):
     if not result:
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    await handlers.get_web(message) # Вывод
+    # Вывод
+    old_forename = web['forename']
+    old_emoji = web['emoji'] or await rndemoji()
+
+    await message.answer(
+        text=(
+            "✏️ <b>Паутина была переименована</b>\n"
+            f"{old_emoji} {old_forename} → {emoji} {forename}"
+        ),
+        reply_markup=await kb.go_back()
+    )
 
 # Удаление паутины
 # но если она ещё содержит какие-то чаты - отвечаем ошибкой
@@ -82,21 +119,31 @@ async def msg_rename_emoji(message: Message, state: FSMContext):
 
 @rt.callback_query(F.data == "remove")
 async def remove(callback: CallbackQuery):
-    user_id = callback.from_user.id
-    web = await db.get_web_tid(user_id)
+    user_tid = callback.from_user.id
+    web = await db.get_web_tid(user_tid)
 
     if web is None:
-        return await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await callback.answer()
 
     if web['chats_tid']:
-        return await callback.message.answer("Перед удалением паутины, Вам нужно исключить из неё все чаты.") # Вывод
+        # Вывод
+        await callback.message.answer("Перед удалением паутины, Вам нужно исключить из неё все чаты.")
+        return await callback.answer()
 
     result = await db.rm_web(web['web_id'])
 
     if not result:
-        return await callback.message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        # Вывод
+        await callback.message.answer("Непредвиденная ошибка. Попробуйте позже.")
+        return await callback.answer()
 
-    await callback.message.edit_text("🗑️ Вы <b>безвозвратно удалили</b> эту паутину!") # Вывод
+    # Вывод
+    await callback.message.edit_text(
+        text="🗑️ Вы <b>безвозвратно удалили</b> эту паутину!",
+        reply_markup=await kb.go_back()
+    )
     return await callback.answer()
 
 # Передача владения над паутиной
@@ -107,20 +154,23 @@ async def remove(callback: CallbackQuery):
 
 @rt.callback_query(F.data == "transfer")
 async def transfer(callback: CallbackQuery, state: FSMContext):
-    user_id = callback.from_user.id
-    web = await db.get_web_tid(user_id)
+    user_tid = callback.from_user.id
+    web = await db.get_web_tid(user_tid)
 
     if web is None:
-        return await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await callback.answer()
 
     await state.update_data(web=web)
-    await state.set_state(WebTransferOwnership.new_tid_owner)
+    await state.set_state(WebTransferOwnership.owner_tid)
 
-    await callback.message.edit_text("Введите @юзернейм нового владельца <i>(он обязан иметь переписку с ботом)</i>") # Вывод
+    # Вывод
+    await callback.message.edit_text("Введите @юзернейм нового владельца <i>(он обязан иметь переписку с ботом)</i>")
     return await callback.answer()
 
-@rt.message(WebTransferOwnership.new_tid_owner)
-async def cb_msg_new_tid_owner(message: Message, state: FSMContext):
+@rt.message(WebTransferOwnership.owner_tid)
+async def transfer_msg_owner_tid(message: Message, state: FSMContext):
     new_owner_tusername = message.text.strip("@")
     error_wrong_username_format = False
 
@@ -156,9 +206,275 @@ async def cb_msg_new_tid_owner(message: Message, state: FSMContext):
 
     await message.answer("📤 Теперь эта паутина <b>не принадлежит</b> Вам!") # Вывод
 
+#   #   #   #   #   #   #   #   #
+#   Панель управления админами  #
+#   #   #   #   #   #   #   #   #
+
+async def admin_output(admin: dict, admin_tid: int, post: str, callback: CallbackQuery):
+    admin_id = admin['admin_id']
+    admin_t = await bot.get_chat(admin_tid)
+    admin_tusername = admin_t.username
+    admin_tfull_name = admin_t.full_name
+    admin_tlink = f"<a href='https://t.me/{admin_tusername}'>{admin_tfull_name}</a>" if admin_tusername else admin_tfull_name
+    if admin_tusername:
+        admin_tlink = f"<a href='https://t.me/{admin_tusername}'>{admin_tfull_name}</a>"
+    else:
+        admin_tlink = f"<a href='tg://openmessage?user_id={admin_tid}'>{admin_tfull_name}</a>"
+    post = admin_type_str[post]
+    restrs_count = admin['restrs_count']
+    date_reg = await date_c(admin['date_reg'])
+
+    await callback.message.edit_text(
+        text=(
+            f"🛡️ <b>{admin_tlink}</b> — <b>{post}</b>\n"
+            f"Был нанят: <b>{date_reg}</b> | Выдано наказаний: <b>{restrs_count}</b>\n\n"
+        ),
+        reply_markup=await kb.admin(admin_id)
+    )
+    return await callback.answer()
+
+
+# Список всех админов
+# Выводит список всех админов в паутине, где каждый админ - inline-кнпока.
+# При нажатии на кнопку админа, показывает панель управления этим конкретным админом
+
+@rt.callback_query(F.data == "admins")
+async def admins(callback: CallbackQuery):
+    user_tid = callback.from_user.id
+    web = await db.get_web_tid(user_tid)
+
+    if web is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await callback.answer()
+
+    web_id = web['web_id']
+    forename = web['forename']
+
+    admins = await db.get_web_admins(web_id)
+
+    # Вывод
+    await callback.message.edit_text(
+        text=f"🛡️ Админы паутины <b>{forename}</b>",
+        reply_markup=await kb.admins(admins)
+    )
+    await callback.answer()
+
+# Управление конкретным админом
+
+@rt.callback_query(F.data.startswith("admin_"))
+async def admin(callback: CallbackQuery):
+    user_tid = callback.from_user.id
+    web = await db.get_web_tid(user_tid)
+
+    if web is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await callback.answer()
+
+    admin_id = callback.data.split("_")[-1]
+    admin = await db.get_admin_id(admin_id)
+
+    if admin is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
+        return await callback.answer()
+
+    admin_tid = admin['admin_tid']
+
+    if user_tid == admin_tid:
+        return await callback.answer("Это Вы") # Вывод
+
+    await admin_output(admin, admin_tid, admin['post'], callback) # Вывод
+
+# Повышение конкретного админа
+
+@rt.callback_query(F.data.startswith("up_"))
+async def admin_up(callback: CallbackQuery):
+    user_tid = callback.from_user.id
+    web = await db.get_web_tid(user_tid)
+
+    if web is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await callback.answer()
+
+    web_id = web['web_id']
+    admin_id = callback.data.split("_")[-1]
+    admin = await db.get_admin_id(admin_id)
+
+    if admin is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
+        return await callback.answer()
+
+    admin_tid = admin['admin_tid']
+    old_post = admin['post']
+    user_admin = await db.get_admin(user_tid, web['web_id'])
+    user_post = user_admin['post']
+    new_post = ""
+
+    if admin_type_strint[user_post] < 3:
+        return await callback.answer(f"Недостаточно прав ({admin_type_str[user_post]}/{admin_type_str['helper']})") # Вывод
+
+    if old_post == "owner":
+        return await callback.answer(
+            # Вывод
+            text="Нельзя менять права владельцу чата.",
+            show_alert=True
+        )
+    elif old_post == "helper":
+        if admin_type_strint[user_post] <= admin_type_strint[old_post]:
+            return await callback.answer(
+                # Вывод
+                text="Вы не можете менять права админу, который выше или равен Вам.",
+                show_alert=True
+            )
+        else:
+            return await callback.answer(
+                text=(
+                    # Вывод
+                    "В одной паутине может быть только один владелец.\n"
+                    "Если Вы хотите передать этому человеку права на паутину, то нажмите на соответствующую кнопку."
+                ),
+                show_alert=True
+            )
+    elif old_post == "admin":
+        if user_post != "owner":
+            return await callback.answer(
+                # Вывод
+                text="Назначать новых хелперов может только владелец паутины.",
+                show_alert=True
+            )
+        else:
+            new_post = admin_type_intstr[admin_type_strint[old_post] + 1]
+            result = await db.upd_admin_post(admin_tid, web_id, new_post)
+
+            if not result:
+                return await callback.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    elif old_post == "moder":
+        new_post = admin_type_intstr[admin_type_strint[old_post] + 1]
+        result = await db.upd_admin_post(admin_tid, web_id, new_post)
+
+        if not result:
+            return await callback.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    await admin_output(admin, admin_tid, new_post, callback) # Вывод 
+
+# Понижение конкретного админа
+
+@rt.callback_query(F.data.startswith("down_"))
+async def admin_down(callback: CallbackQuery):
+    user_tid = callback.from_user.id
+    web = await db.get_web_tid(user_tid)
+
+    if web is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await callback.answer()
+
+    web_id = web['web_id']
+    admin_id = callback.data.split("_")[-1]
+    admin = await db.get_admin_id(admin_id)
+
+    if admin is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
+        return await callback.answer()
+
+    admin_tid = admin['admin_tid']
+    old_post = admin['post']
+    user_admin = await db.get_admin(user_tid, web['web_id'])
+    user_post = user_admin['post']
+    new_post = ""
+
+    if admin_type_strint[user_post] < 3:
+        return await callback.answer(f"Недостаточно прав ({admin_type_str[user_post]}/{admin_type_str['helper']})") # Вывод
+
+    if old_post == "owner":
+        return await callback.answer(
+            # Вывод
+            text="Нельзя менять права владельцу чата.",
+            show_alert=True
+        )
+    elif old_post == "helper":
+        if user_post != "owner":
+            return await callback.answer(
+                # Вывод
+                text="Снимать хелперов может только владелец паутины.",
+                show_alert=True
+            )
+        else:
+            new_post = admin_type_intstr[admin_type_strint[old_post] - 1]
+            result = await db.upd_admin_post(admin_tid, web_id, new_post)
+
+            if not result:
+                return await callback.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    elif old_post == "admin":
+        new_post = admin_type_intstr[admin_type_strint[old_post] - 1]
+        result = await db.upd_admin_post(admin_tid, web_id, new_post)
+
+        if not result:
+            return await callback.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    elif old_post == "moder":
+        return await callback.answer(
+            text="Если Вы хотите снять этого человека с должности, то нажмите на соответствующую кнопку.",
+            show_alert=True
+        )
+
+    await admin_output(admin, admin_tid, new_post, callback) # Вывод 
+
 #########################
 #   Остальные коллбэки  #
 #########################
+
+# Коллбэк-альтернатива хэндлеровскому get_web()
+
+@rt.callback_query(F.data == "get_web")
+async def get_web(callback: CallbackQuery):
+    user_t = callback.from_user
+    user_tid = user_t.id
+    await db.mk_user(user_tid, user_t.username)
+
+    web = await db.get_web_tid(user_tid)
+
+    if web is None:
+        await callback.message.edit_text("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
+        return await callback.answer()
+
+    await callback.message.edit_text("Подождите, идёт загрузка...")
+
+    chats_tid = web['chats_tid']
+    chats_tid_str = ""
+    if not chats_tid:
+        chats_tid_str = "В этой паутине нет чатов."
+    else:
+        seq = 1
+        for chat_tid in chats_tid:
+            chat_t = await bot.get_chat(chat_tid)
+            chat_tusername = chat_t.username
+            chat_ttitle = chat_t.title
+            chat_tlink = f"<a href='https://t.me/{chat_tusername}'>{chat_ttitle}</a>" if chat_tusername else chat_ttitle
+            chats_tid_str += f"{seq}. <b>{chat_tlink}</b>\n"
+            seq += 1
+            await sleep(2.0) # Чтобы Телеграм не жаловался на большое количество обращений
+
+    # Вывод
+    emoji = web['emoji'] or await rndemoji()
+    forename = web['forename']
+    web_id = web['web_id']
+    date_reg = await date_c(web['date_reg'])
+
+    await callback.message.edit_text(
+        text=(
+            f"{emoji} <b>{forename}</b>\n"
+            f"Дата создания: <b>{date_reg}</b> | ID: <b>#{web_id}</b>\n\n"
+            "Чаты:\n"
+            f"{chats_tid_str}"
+        ),
+        reply_markup=await kb.web_settings() 
+    )
+    await callback.answer()
 
 # Владелец чата принял запрос на вступление в чужую паутину
 # Также делает владельца этого чата хелпером в этой паутине
