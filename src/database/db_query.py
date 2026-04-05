@@ -6,25 +6,20 @@ from datetime import datetime
 from random import choice
 from string import ascii_letters, digits
 
+import config
+
 class Database():
     def __init__(self):
-        self.conn_params = {
-            "host":     "localhost",
-            "dbname":   "postgres",
-            "port":     "5432",
-            "user":     "postgres",
-            "password": "nicetea"
-        }
         self.conn = None
         self.cur = None
 
     async def connect(self):
         self.conn = await AsyncConnection.connect(
-            host        = self.conn_params["host"],
-            dbname      = self.conn_params["dbname"],
-            port        = self.conn_params["port"],
-            user        = self.conn_params["user"],
-            password    = self.conn_params["password"],
+            host        = config.DB_HOST,
+            dbname      = config.DB_DBNAME,
+            port        = config.DB_PORT,
+            user        = config.DB_USER,
+            password    = config.DB_PASSWORD,
             row_factory = dict_row
         )
         self.cur = self.conn.cursor()

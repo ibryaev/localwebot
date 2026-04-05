@@ -3,3 +3,4 @@ aiosqlite
 aiohttp-socks
 psycopg
 emoji
+python-dotenv

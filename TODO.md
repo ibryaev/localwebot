@@ -1,6 +1,6 @@
 - [x] Replace psycopg2 with psycopg3 (because asyncio)  ([8f56824](https://github.com/ibryaev/localwebot/commit/8f5682452b7087d55e5dfe025dd917e352efdef5))
 - [X] Finish database and integrate it                  ([8f56824](https://github.com/ibryaev/localwebot/commit/8f5682452b7087d55e5dfe025dd917e352efdef5))
-- [ ] Create .env-file
+- [X] Create .env-file
 - [ ] Add english language
 - [x] Ability to rename                                 ([563a677](https://github.com/ibryaev/localwebot/commit/563a67750fc865ce2ec4667fac6f220cb6851979))
 - [ ] Limit three chats for one web
