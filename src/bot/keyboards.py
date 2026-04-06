@@ -25,7 +25,7 @@ async def main_menu() -> ReplyKeyboardMarkup:
     emoji = await rndemoji()
 
     return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text= "🗂️ Моя паутина")]       ,                    # 1
+        [KeyboardButton(text= "🗂️ Мои паутины")]       ,                    # 1
         [KeyboardButton(text=f"{emoji} Создать паутину", style="success") , # 2
          KeyboardButton(text= "➕ Добавить в чат"      , style="primary")], # 2
         [KeyboardButton(text= "📚 Команды")]                                # 3
@@ -42,12 +42,12 @@ async def web_settings() -> InlineKeyboardMarkup:
          InlineKeyboardButton(text="🗑️ Удалить"      , callback_data="remove"  , style="danger")] # 3
     ])
 
-async def send_invite_to_web(user_id: int) -> InlineKeyboardMarkup:
+async def accept_invite_web(user_tid: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="➕ Отправить предложение", callback_data=f"send_invite_{user_id}")]
+        [InlineKeyboardButton(text="➕ Принять", callback_data=f"accept_invite_{user_tid}")]
     ])
 
-async def admins(admins: list[dict]) -> InlineKeyboardMarkup:
+async def admins(admins: list[dict], heir_tid: int) -> InlineKeyboardMarkup:
     inline_keyboard = InlineKeyboardBuilder()
 
     if not admins:
@@ -59,18 +59,40 @@ async def admins(admins: list[dict]) -> InlineKeyboardMarkup:
     else:
         for admin in admins:
             admin_t = await bot.get_chat(admin['admin_tid'])
+            post = admin['post']
+            suffix = ""
+            if post == "owner":
+                prefix = "👑"
+            if post == "helper":
+                prefix = "3️⃣"
+            if post == "admin":
+                prefix = "2️⃣"
+            if post == "moder":
+                prefix = "1️⃣"
+
+            web = await db.get_web(admin['web_id'])
+            if web is None:
+                continue
+            if admin_t.id == web['heir_tid']:
+                suffix = " "
+
             inline_keyboard.add(InlineKeyboardButton(
-                text=admin_t.full_name,
+                text=f"{prefix} {admin_t.full_name}{suffix}",
                 callback_data=f"admin_{admin['admin_id']}"
             ))
 
+    inline_keyboard.add(InlineKeyboardButton(
+        text="🗑️ Убрать адм. чат",
+        callback_data="rm_admin_chat",
+        style="primary"
+    ))
     inline_keyboard.add(InlineKeyboardButton(
         text="⬅️ Обратно",
         callback_data="get_web",
         style="primary"
     ))
 
-    return inline_keyboard.adjust(3).as_markup()
+    return inline_keyboard.adjust(2).as_markup()
 
 async def admin(admin_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[

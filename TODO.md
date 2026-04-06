@@ -1,6 +1,6 @@
 - [x] Replace psycopg2 with psycopg3 (because asyncio)  ([8f56824](https://github.com/ibryaev/localwebot/commit/8f5682452b7087d55e5dfe025dd917e352efdef5))
 - [X] Finish database and integrate it                  ([8f56824](https://github.com/ibryaev/localwebot/commit/8f5682452b7087d55e5dfe025dd917e352efdef5))
-- [X] Create .env-file
+- [X] Create .env-file                                  ([0efce06](https://github.com/ibryaev/localwebot/commit/0efce06ddaaffbab2805bbd1393bb783a95b2361))
 - [ ] Add english language
 - [x] Ability to rename                                 ([563a677](https://github.com/ibryaev/localwebot/commit/563a67750fc865ce2ec4667fac6f220cb6851979))
 - [ ] Limit three chats for one web
@@ -10,3 +10,5 @@
 - [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
 - [x] Finish "send request to my web" button callback   ([b37907b](https://github.com/ibryaev/localwebot/commit/b37907bd8b7d31668279bb77c2cd4488aac6ee58))
 - [ ] Add heir system
+- [x] Add admin chat connection to web
+- [ ] Add report system

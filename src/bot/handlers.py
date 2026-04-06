@@ -4,14 +4,17 @@ from aiogram.types import Message, ChatMemberUpdated
 from aiogram.filters.chat_member_updated import ChatMemberUpdatedFilter, JOIN_TRANSITION#, LEAVE_TRANSITION
 from asyncio import sleep
 
-import bot.keyboards as kb
 from config import *
 from utils import *
+import bot.keyboards as kb
 
 rt = Router(name="handlers")
 
-@rt.message(CommandStart(ignore_case=True))
+@rt.message(CommandStart(ignore_case=True, deep_link=False))
 async def introduce(message: Message):
+    if message.chat.type != "private":
+        return
+
     user_t = message.from_user
     await db.mk_user(user_t.id, user_t.username)
 
@@ -29,16 +32,16 @@ async def introduce(message: Message):
     await message.answer(
         text=(
             f"{emoji} <b>{bot_full_name}</b>\n\n"
-            "Этот бот позволяет объединить несколько чатов в одну паутину, "
-            "позволяя централизировать несколько проектов и объединяться с другими чатами.\n\n"
-            "🔨 <b>Глобальный бан:</b> Если забаненный в одном чате человек, "
-            "войдёт в другой чат, но из той же паутины, то бот автоматически забанит его и там.\n"
-            "🔇 <b>Глобальный мут:</b> Замученный в одном чате человек, не сможет писать сообщения в другой чате, из той же паутины.\n"
-            "👟 <b>Глобальный кик:</b> Кик человека из одного чата, кикнет его из всех чатов этой паутины.\n"
-            "🛡️ <b>Глобальная модерация:</b> Админ из одного чата, будет админом во всех чатах паутины.\n\n"
-            "<b>Один</b> человек может иметь <b>одну</b> паутину,\n"
-            "<b>один</b> чат может состоять в <b>одной</b> паутине!\n\n"
-            "Создай паутину используя меню, добавляй бота в нужные чаты и пиши там команду <code>паутина</code> 👇"
+             "Этот бот позволяет объединить несколько чатов в одну паутину, "
+             "позволяя централизировать несколько проектов и объединяться с другими чатами.\n\n"
+             "🔨 <b>Глобальный бан:</b> Если забаненный в одном чате человек, "
+             "войдёт в другой чат, но из той же паутины, то бот автоматически забанит его и там.\n"
+             "🔇 <b>Глобальный мут:</b> Замученный в одном чате человек, не сможет писать сообщения в другой чате, из той же паутины.\n"
+             "👟 <b>Глобальный кик:</b> Кик человека из одного чата, кикнет его из всех чатов этой паутины.\n"
+             "🛡️ <b>Глобальная модерация:</b> Админ из одного чата, будет админом во всех чатах паутины.\n\n"
+             "<b>Один</b> человек может иметь <b>одну</b> паутину,\n"
+             "<b>один</b> чат может состоять в <b>одной</b> паутине!\n\n"
+             "Создай паутину используя меню, добавляй бота в нужные чаты и пиши там команду <code>паутина</code> 👇"
         ),
         reply_markup=await kb.add_to_chat()
     )
@@ -55,6 +58,9 @@ async def introduce(message: Message):
 @rt.message(F.text[2:] == "Создать паутину")
 @rt.message(F.text[3:] == "Создать паутину")
 async def mk_web(message: Message):
+    if message.chat.type != "private":
+        return
+
     user_t = message.from_user
     user_tid = user_t.id
     await db.mk_user(user_tid, user_t.username)
@@ -65,7 +71,7 @@ async def mk_web(message: Message):
         return await message.answer("У Вас уже есть паутина.") # Вывод
 
     web = await db.mk_web(
-        forename=user_t.full_name,
+        forename=user_t.full_name[:32],
         owner_tid=user_tid
     )
 
@@ -79,8 +85,8 @@ async def mk_web(message: Message):
     await message.reply(
         text=(
             f"✅ Паутина <b>{forename} (#{web_id})</b> успешно создана!\n\n"
-            "Можете заняться её первоначальной настройкой, нажав на кнопку <code>🗂️ Моя паутина</code> "
-            "или сразу добавить в неё первые чаты 👇"
+             "Можете заняться её первоначальной настройкой, нажав на кнопку <code>🗂️ Мои паутины</code> "
+             "или сразу добавить в неё первые чаты 👇"
         ),
         reply_markup=await kb.add_to_chat()
     )
@@ -91,6 +97,9 @@ async def mk_web(message: Message):
 
 @rt.message(F.text == "➕ Добавить в чат")
 async def add_to_chat(message: Message):
+    if message.chat.type != "private":
+        return
+
     user_t = message.from_user
     await db.mk_user(user_t.id, user_t.username)
 
@@ -104,8 +113,11 @@ async def add_to_chat(message: Message):
 # Выводит список чатов, который входят в паутину, 
 # и inline-клавиатуру, с кнопками для настройки своей паутины
 
-@rt.message(F.text == "🗂️ Моя паутина")
+@rt.message(F.text == "🗂️ Мои паутины")
 async def get_web(message: Message):
+    if message.chat.type != "private":
+        return
+
     user_t = message.from_user
     user_tid = user_t.id
     await db.mk_user(user_tid, user_t.username)
@@ -120,15 +132,20 @@ async def get_web(message: Message):
     chats_tid = web['chats_tid']
     chats_tid_str = ""
     if not chats_tid:
-        chats_tid_str = "В этой паутине нет чатов."
+        chats_tid_str = "<b>В этой паутине нет чатов.</b>"
     else:
         seq = 1
         for chat_tid in chats_tid:
+            chat = await db.get_chat(chat_tid)
             chat_t = await bot.get_chat(chat_tid)
             chat_tusername = chat_t.username
             chat_ttitle = chat_t.title
             chat_tlink = f"<a href='https://t.me/{chat_tusername}'>{chat_ttitle}</a>" if chat_tusername else chat_ttitle
-            chats_tid_str += f"{seq}. <b>{chat_tlink}</b>\n"
+            admin_chat_tid = chat['admin_chat_tid']
+            chats_tid_str += f"{seq}. <b>{chat_tlink}</b>"
+            if admin_chat_tid and admin_chat_tid == chats_tid:
+                chats_tid_str += " <i>(адм)</i>"
+            chats_tid_str += "\n"
             seq += 1
             await sleep(2.0) # Чтобы Телеграм не жаловался на большое количество обращений. TODO Хранить в БД имя чата
 
@@ -142,7 +159,7 @@ async def get_web(message: Message):
         text=(
             f"{emoji} <b>{forename}</b>\n"
             f"Дата создания: <b>{date_reg}</b> | ID: <b>#{web_id}</b>\n\n"
-            "Чаты:\n"
+             "Чаты:\n"
             f"{chats_tid_str}"
         ),
         reply_markup=await kb.web_settings() 
@@ -175,8 +192,7 @@ async def on_my_join_transition(event: ChatMemberUpdated):
     chat = await db.get_chat(chat_tid)
 
     if chat is not None:
-        emoji = chat['emoji'] or await rndemoji()
-        return await event.answer(emoji) # Вывод
+        return await event.answer("&gt;_&lt;") # Вывод (">_<". Особенности HTML)
 
     # Вывод
     emoji = await rndemoji()
@@ -203,7 +219,10 @@ async def on_my_join_transition(event: ChatMemberUpdated):
 #    мгновенно включает его чат в его паутину.
 
 @rt.message(F.text == "паутина")
-async def cmd_mk_chat(message: Message):
+async def mk_chat(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
     user_t = message.from_user
     chat_t = message.chat
     user_tid = user_t.id
@@ -269,3 +288,34 @@ async def cmd_mk_chat(message: Message):
             f"Владелец: <b>{web_owner_link}</b> | Наследник: <b>{web_heir_link}</b>"
         )
     )
+
+# Делает чат, в котором была введена эта команда, админским в этой паутине
+
+@rt.message(F.text == "сделать админским")
+async def mk_admin_chat(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    user_t = message.from_user
+    chat_t = message.chat
+    user_tid = user_t.id
+    chat_tid = chat_t.id
+    await db.mk_user(user_tid, user_t.username)
+    await db.mk_user(chat_tid, chat_t.username)
+
+    chat = await db.get_chat(chat_tid)
+
+    if chat is None:
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+
+    if user_tid != chat['owner_tid']:
+        return await message.answer("Только владелец паутины может назначать админский чат.") # Вывод
+
+    web_id = chat['web_id']
+
+    result = await db.upd_web_admin_chat_tid(web_id, chat_tid)
+
+    if not result:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    await message.reply("🛡️ Теперь в этот чат будут приходить глобальные репорты.") # Вывод

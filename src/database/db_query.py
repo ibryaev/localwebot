@@ -169,6 +169,20 @@ class Database():
             await self.conn.rollback()
             return False
 
+    async def upd_web_admin_chat_tid(self, web_id: str, admin_chat_tid: int) -> bool:
+        '''Назначает админский чат на сетку'''
+        try:
+            await self.cur.execute(
+                "UPDATE webs SET admin_chat_tid = %s WHERE web_id = %s",
+                (admin_chat_tid, web_id)
+            )
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_web_admin_chat_tid(): {e}")
+            await self.conn.rollback()
+            return False
+
     async def rm_web(self, web_id: str) -> bool:
         '''Удаляет паутину. Связанные чаты и админы удалятся по CASCADE'''
         try:

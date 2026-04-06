@@ -1,3 +1,5 @@
+-- Весь этот проект посвящается моему дяде.
+
 BEGIN TRANSACTION;
 
 DO $$ BEGIN
@@ -12,16 +14,17 @@ END $$;
 CREATE TABLE IF NOT EXISTS users (
     tid BIGINT PRIMARY KEY,
     username VARCHAR(32) DEFAULT NULL
-);  
+);
 
 CREATE TABLE IF NOT EXISTS webs (
     web_id VARCHAR(4) PRIMARY KEY,
     forename VARCHAR(32) NOT NULL,
     emoji TEXT DEFAULT NULL,
+    descr VARCHAR(200) DEFAULT NULL,
     owner_tid BIGINT REFERENCES users(tid) ON DELETE CASCADE,
     heir_tid BIGINT REFERENCES users(tid) ON DELETE SET NULL DEFAULT NULL,
     chats_tid BIGINT[] NOT NULL DEFAULT '{}',
-    descr VARCHAR(200) DEFAULT NULL,
+    admin_chat_tid BIGINT DEFAULT NULL,
     date_reg TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

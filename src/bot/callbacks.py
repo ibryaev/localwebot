@@ -234,6 +234,48 @@ async def admin_output(admin: dict, admin_tid: int, post: str, callback: Callbac
     return await callback.answer()
 
 
+# Отвязывает админский чат от паутины (если он есть)
+
+@rt.callback_query(F.data == "rm_admin_chat")
+async def rm_admin_chat(callback: CallbackQuery):
+    user_tid = callback.from_user.id
+    web = await db.get_web_tid(user_tid)
+
+    if web is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await callback.answer()
+
+    web_id = web['web_id']
+
+    if web['admin_chat_tid']:
+        admin_chat_tid = web['admin_chat_tid']
+    else:
+        await callback.answer(
+            # Вывод
+            text="У Вашей паутины и так нет админского чата.",
+            show_alert=True
+        )
+
+    admin_chat_t = await bot.get_chat(admin_chat_tid)
+    admin_chat_tusername = admin_chat_t.username
+    admin_chat_ttitle = admin_chat_t.title
+    admin_chat_tlink = f"{admin_chat_ttitle} (@{admin_chat_tusername})" if admin_chat_tusername else admin_chat_ttitle
+
+    result = await db.upd_web_admin_chat_tid(web_id, None)
+
+    if not result:
+        return await callback.message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Вывод
+    await callback.answer(
+        text=(
+            f"Вы отняли у чата {admin_chat_tlink} статус админского. "
+             "Теперь у Вашей паутины нет админского чата."
+        ),
+        show_alert=True
+    )
+
 # Список всех админов
 # Выводит список всех админов в паутине, где каждый админ - inline-кнпока.
 # При нажатии на кнопку админа, показывает панель управления этим конкретным админом
@@ -250,13 +292,14 @@ async def admins(callback: CallbackQuery):
 
     web_id = web['web_id']
     forename = web['forename']
+    heir_tid = web['heir_tid']
 
     admins = await db.get_web_admins(web_id)
 
     # Вывод
     await callback.message.edit_text(
         text=f"🛡️ Админы паутины <b>{forename}</b>",
-        reply_markup=await kb.admins(admins)
+        reply_markup=await kb.admins(admins, heir_tid)
     )
     await callback.answer()
 
