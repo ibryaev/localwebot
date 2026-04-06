@@ -183,6 +183,23 @@ class Database():
             await self.conn.rollback()
             return False
 
+    async def upd_web_descr(self, web_id: str, descr: str) -> bool:
+        '''Обновляет описание паутины'''
+        if len(descr) > 200:
+            raise ValueError("Web description cannot be larger than 200 symbols")
+
+        try:
+            await self.cur.execute(
+                "UPDATE webs SET descr = %s WHERE web_id = %s",
+                (descr, web_id)
+            )
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_web_descr(): {e}")
+            await self.conn.rollback()
+            return False
+
     async def rm_web(self, web_id: str) -> bool:
         '''Удаляет паутину. Связанные чаты и админы удалятся по CASCADE'''
         try:

@@ -10,5 +10,6 @@
 - [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
 - [x] Finish "send request to my web" button callback   ([b37907b](https://github.com/ibryaev/localwebot/commit/b37907bd8b7d31668279bb77c2cd4488aac6ee58))
 - [ ] Add heir system
-- [x] Add admin chat connection to web
+- [x] Add admin chat connection to web                  ([fca81ce](https://github.com/ibryaev/localwebot/commit/fca81ce95d6a5ca7c8f96a42b1a7744759e6465f))
 - [ ] Add report system
+- [x] Add description for web

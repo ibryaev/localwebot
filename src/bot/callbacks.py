@@ -20,6 +20,8 @@ rt = Router(name="callbacks")
 class WebRename(StatesGroup):
     forename = State()
     emoji = State()
+class WebDescription(StatesGroup):
+    description = State()
 class WebTransferOwnership(StatesGroup):
     owner_tid = State()
 
@@ -110,6 +112,58 @@ async def rename_msg_emoji(message: Message, state: FSMContext):
             f"{old_emoji} {old_forename} → {emoji} {forename}"
         ),
         reply_markup=await kb.go_back()
+    )
+
+# Изменение описания паутины
+# Один шаг FSM: просим новое описание и после записываем новые данные в БД
+
+@rt.callback_query(F.data == "about")
+async def about(callback: CallbackQuery, state: FSMContext):
+    user_tid = callback.from_user.id
+    web = await db.get_web_tid(user_tid)
+
+    if web is None:
+        # Вывод
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
+        return await callback.answer()
+
+    #await state.update_data(web=web)
+    await state.set_state(WebDescription.description)
+
+    # Вывод
+    await callback.message.edit_text("Введите новое описание этой паутины")
+    return await callback.answer()
+
+@rt.message(WebDescription.description)
+async def about_msg_description(message: Message, state: FSMContext):
+    descr = message.text
+
+    if len(descr) > 200:
+        return await message.answer("Описание не должно состоять из более чем 200 символов. Попробуйте снова.") # Вывод
+
+    #data = await state.get_data()
+
+    user_tid = message.from_user.id
+    #web = data['web']
+
+    await state.clear()
+
+    web = await db.get_web_tid(user_tid)
+
+    if web is None:
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
+
+    web_id = web['web_id']
+
+    result = await db.upd_web_descr(web_id, descr)
+
+    if not result:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Вывод
+    await message.answer(
+        text="📃 Описание паутины было изменено.",
+        reply_markup=await kb.about(web_id, True)
     )
 
 # Удаление паутины
@@ -507,12 +561,15 @@ async def get_web(callback: CallbackQuery):
     forename = web['forename']
     web_id = web['web_id']
     date_reg = await date_c(web['date_reg'])
+    descr = web['descr']
+    descr = descr if descr else "Описание отсутствует."
 
     await callback.message.edit_text(
         text=(
             f"{emoji} <b>{forename}</b>\n"
-            f"Дата создания: <b>{date_reg}</b> | ID: <b>#{web_id}</b>\n\n"
-            "Чаты:\n"
+            f"Дата создания: <b>{date_reg}</b> | ID: <b>#{web_id}</b>\n"
+            f"<blockquote>{descr}</blockquote>\n\n"
+             "Чаты:\n"
             f"{chats_tid_str}"
         ),
         reply_markup=await kb.web_settings() 
@@ -553,3 +610,22 @@ async def accept_invite(callback: CallbackQuery):
     await callback.message.edit_text("✅ Это предложение было принято!")
     await callback.message.answer(f"✅ Чат <b>{chat_t.title}</b> успешно добавлен в паутину <b>{web['forename']}</b>!")
     await callback.answer()
+
+# Чтение описания паутины
+
+@rt.callback_query(F.data.startswith("about_"))
+async def about_web_id(callback: CallbackQuery):
+    web_id = callback.data.split("_")[-1]
+    web = await db.get_web(web_id)
+
+    if web is None:
+        return await callback.answer("Произошла либо непредвиденная ошибка, либо этой паутины более не существует.") # Вывод
+
+    descr = web['descr']
+    descr = descr if descr else "Описание отсутствует."
+
+    # Вывод
+    await callback.answer(
+        text=descr,
+        show_alert=True
+    )

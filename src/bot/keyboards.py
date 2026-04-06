@@ -36,7 +36,8 @@ async def main_menu() -> ReplyKeyboardMarkup:
 
 async def web_settings() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✏️ Переименовать", callback_data="rename")],                  # 1
+        [InlineKeyboardButton(text="✏️ Переименовать", callback_data="rename"),                   # 1
+         InlineKeyboardButton(text="📃 Изменить описание", callback_data="about")],               # 1
         [InlineKeyboardButton(text="🛡️ Администрация", callback_data="admins")],                  # 2
         [InlineKeyboardButton(text="📤 Передать"     , callback_data="transfer", style="danger"), # 3
          InlineKeyboardButton(text="🗑️ Удалить"      , callback_data="remove"  , style="danger")] # 3
@@ -46,6 +47,22 @@ async def accept_invite_web(user_tid: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="➕ Принять", callback_data=f"accept_invite_{user_tid}")]
     ])
+
+async def about(web_id: str, is_admin: bool = False) -> InlineKeyboardMarkup:
+    inline_keyboard = InlineKeyboardBuilder()
+
+    inline_keyboard.add(InlineKeyboardButton(
+        text="ℹ️ О паутине",
+        callback_data=f"about_{web_id}"
+    ))
+    if is_admin:
+        inline_keyboard.add(InlineKeyboardButton(
+            text="⬅️ Обратно",
+            callback_data="get_web",
+            style="primary"
+        ))
+
+    return inline_keyboard.adjust(1).as_markup()
 
 async def admins(admins: list[dict], heir_tid: int) -> InlineKeyboardMarkup:
     inline_keyboard = InlineKeyboardBuilder()

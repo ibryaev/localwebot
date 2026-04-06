@@ -152,13 +152,16 @@ async def get_web(message: Message):
     # Вывод
     emoji = web['emoji'] or await rndemoji()
     forename = web['forename']
-    web_id = web['web_id']
     date_reg = await date_c(web['date_reg'])
+    web_id = web['web_id']
+    descr = web['descr']
+    descr = descr if descr else "Описание отсутствует."
 
     await msg.edit_text(
         text=(
             f"{emoji} <b>{forename}</b>\n"
-            f"Дата создания: <b>{date_reg}</b> | ID: <b>#{web_id}</b>\n\n"
+            f"Дата создания: <b>{date_reg}</b> | ID: <b>#{web_id}</b>\n"
+            f"<blockquote>{descr}</blockquote>\n\n"
              "Чаты:\n"
             f"{chats_tid_str}"
         ),
@@ -286,7 +289,8 @@ async def mk_chat(message: Message):
         text=(
             f"{emoji} Этот чат состоит в паутине <b>{forename}</b>\n"
             f"Владелец: <b>{web_owner_link}</b> | Наследник: <b>{web_heir_link}</b>"
-        )
+        ),
+        reply_markup=await kb.about(web_id)
     )
 
 # Делает чат, в котором была введена эта команда, админским в этой паутине
