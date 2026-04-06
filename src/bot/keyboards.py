@@ -87,11 +87,8 @@ async def admins(admins: list[dict], heir_tid: int) -> InlineKeyboardMarkup:
             if post == "moder":
                 prefix = "1️⃣"
 
-            web = await db.get_web(admin['web_id'])
-            if web is None:
-                continue
-            if admin_t.id == web['heir_tid']:
-                suffix = " "
+            if heir_tid == admin_t.id:
+                suffix = " 👑"
 
             inline_keyboard.add(InlineKeyboardButton(
                 text=f"{prefix} {admin_t.full_name}{suffix}",
