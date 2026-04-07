@@ -10,3 +10,21 @@
 * Админ из одного чата, будет админом во всех чатах сетки.
 
 **Один** человек может иметь **одну** паутину, **один** чат может состоять в **одной** паутине.
+
+### Зависимости
+
+1. Python 3.14.3, aiogram 3.27.0
+2. Клонируйте репозиторий:
+    ```Terminal
+    git clone git@github.com:ibryaev/localwebot.git
+    cd localwebot
+    ```
+3. Создайте свою posgtre базу данных из **скрипта** [schema.sql](src/database/schema.sql) и запустите сервер **перед** запуском бота.
+4. Установите зависимости:
+    ```Terminal
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    ```
+
+После этого бота можно будет запустить командой `python3 src/main.py`.
