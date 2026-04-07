@@ -5,7 +5,8 @@
 - [x] Ability to rename                                 ([563a677](https://github.com/ibryaev/localwebot/commit/563a67750fc865ce2ec4667fac6f220cb6851979))
 - [ ] Limit three chats for one web
 - [x] Add settings for web in "my web"-menu             ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
-  - [ ] Finish panel with admins list
+  - [x] Finish panel with admins list
+    - [ ] Add ability to view admins list from admin chat
 - [x] Trigger when bot added in chat                    ([dc6e6a0](https://github.com/ibryaev/localwebot/commit/dc6e6a01ebb56c94711c8fae08cda0d3269ceac0))
 - [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
 - [x] Finish "send request to my web" button callback   ([b37907b](https://github.com/ibryaev/localwebot/commit/b37907bd8b7d31668279bb77c2cd4488aac6ee58))

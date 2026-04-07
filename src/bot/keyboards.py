@@ -96,9 +96,14 @@ async def admins(admins: list[dict], heir_tid: int) -> InlineKeyboardMarkup:
             ))
 
     inline_keyboard.add(InlineKeyboardButton(
-        text="🗑️ Убрать адм. чат",
+        text="👑 Убрать наследника",
+        callback_data="rm_heir",
+        style="danger"
+    ))
+    inline_keyboard.add(InlineKeyboardButton(
+        text="🗯 Убрать адм. чат",
         callback_data="rm_admin_chat",
-        style="primary"
+        style="danger"
     ))
     inline_keyboard.add(InlineKeyboardButton(
         text="⬅️ Обратно",

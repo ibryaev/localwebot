@@ -1,7 +1,8 @@
 from aiogram import Router, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, ChatMemberUpdated
 from aiogram.filters.chat_member_updated import ChatMemberUpdatedFilter, JOIN_TRANSITION#, LEAVE_TRANSITION
+from aiogram.fsm.context import FSMContext
 from asyncio import sleep
 
 from config import *
@@ -136,14 +137,13 @@ async def get_web(message: Message):
     else:
         seq = 1
         for chat_tid in chats_tid:
-            chat = await db.get_chat(chat_tid)
+            #chat = await db.get_chat(chat_tid)
             chat_t = await bot.get_chat(chat_tid)
             chat_tusername = chat_t.username
             chat_ttitle = chat_t.title
             chat_tlink = f"<a href='https://t.me/{chat_tusername}'>{chat_ttitle}</a>" if chat_tusername else chat_ttitle
-            admin_chat_tid = chat['admin_chat_tid']
             chats_tid_str += f"{seq}. <b>{chat_tlink}</b>"
-            if admin_chat_tid and admin_chat_tid == chats_tid:
+            if web['admin_chat_tid'] == chat_tid:
                 chats_tid_str += " <i>(адм)</i>"
             chats_tid_str += "\n"
             seq += 1
@@ -221,7 +221,7 @@ async def on_my_join_transition(event: ChatMemberUpdated):
 # 3. Если команду прописал сам владелец чата и у него есть своя паутина -
 #    мгновенно включает его чат в его паутину.
 
-@rt.message(F.text == "паутина")
+@rt.message(F.text.casefold() == "+паутина")
 async def mk_chat(message: Message):
     if message.chat.type not in ("group", "supergroup"):
         return
@@ -295,7 +295,7 @@ async def mk_chat(message: Message):
 
 # Делает чат, в котором была введена эта команда, админским в этой паутине
 
-@rt.message(F.text == "сделать админским")
+@rt.message(F.text.casefold() == "сделать админским")
 async def mk_admin_chat(message: Message):
     if message.chat.type not in ("group", "supergroup"):
         return
@@ -316,6 +316,13 @@ async def mk_admin_chat(message: Message):
         return await message.answer("Только владелец паутины может назначать админский чат.") # Вывод
 
     web_id = chat['web_id']
+    web = await db.get_web(web_id)
+
+    if web is None:
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
+
+    if web['admin_chat_tid'] == chat_tid:
+        return await message.reply("Этот чат уже и так является админским.") # Вывод
 
     result = await db.upd_web_admin_chat_tid(web_id, chat_tid)
 
@@ -323,3 +330,18 @@ async def mk_admin_chat(message: Message):
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     await message.reply("🛡️ Теперь в этот чат будут приходить глобальные репорты.") # Вывод
+
+##################################
+#   Команды для личных чатов     #
+##################################
+
+@rt.message(Command("cancel", ignore_case=True))
+async def cancel(message: Message, state: FSMContext) -> None:
+    current_state = await state.get_state()
+
+    if current_state is None:
+        return
+
+    await state.clear()
+
+    await message.answer("Активное действие отменено.") # Вывод

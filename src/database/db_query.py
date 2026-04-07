@@ -354,6 +354,7 @@ class Database():
                 "DELETE FROM admins WHERE admin_tid = %s AND web_id = %s",
                 (admin_tid, web_id)
             )
+            await self.upd_web_heir(web_id, None)
             await self.conn.commit()
             return True
         except Exception as e:
