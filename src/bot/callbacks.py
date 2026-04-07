@@ -18,35 +18,41 @@ rt = Router(name="callbacks")
 ###########################
 
 class WebRename(StatesGroup):
+    # rename()
     forename = State()
     emoji = State()
 class WebDescription(StatesGroup):
+    # about()
     description = State()
 class WebTransferOwnership(StatesGroup):
+    # transfer()
     owner_tid = State()
 
 admin_type_str = {
+    # Преобразует тех. название должности админа в пользовательское
     "owner": "Владелец",
     "helper": "Хелпер",
     "admin": "Админ",
     "moder": "Модер"
 }
 admin_type_intstr = {
+    # Преобразует цифру 1-4 в должность админа (по иерархии)
     4: "owner",
     3: "helper",
     2: "admin",
     1: "moder"
 }
 admin_type_strint = {
+    # Преобразует должность админа в цифру 1-4 (по иерархии)
     "owner": 4,
     "helper": 3,
     "admin": 2,
     "moder": 1
 }
-punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^`{|}~ """
-cyrillic_lowercase = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
-cyrillic_uppercase = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'
-cyrillic_letters = cyrillic_lowercase + cyrillic_uppercase
+punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^`{|}~ """      # Используется только в transfer_msg_owner_tid() #
+cyrillic_lowercase = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'                                                    # Взяты из библиотеки (модуля)
+cyrillic_uppercase = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'                                                    # string и адатированы
+cyrillic_letters = cyrillic_lowercase + cyrillic_uppercase # Используется только в transfer_msg_owner_tid() #
 
 # Переименование паутины
 # Два шага FSM: просим новое имя, потом эмодзи,
@@ -87,11 +93,10 @@ async def rename_msg_emoji(message: Message, state: FSMContext):
 
     data = await state.get_data()
 
-    user_tid = message.from_user.id
-    forename = data['forename']
-
     await state.clear()
 
+    user_tid = message.from_user.id
+    forename = data['forename']
     web = await db.get_web_tid(user_tid)
 
     if web is None:
@@ -115,7 +120,8 @@ async def rename_msg_emoji(message: Message, state: FSMContext):
     )
 
 # Изменение описания паутины
-# Один шаг FSM: просим новое описание и после записываем новые данные в БД
+# Один шаг FSM: просим новое описание
+# и после записываем новые данные в БД
 
 @rt.callback_query(F.data == "about")
 async def about(callback: CallbackQuery, state: FSMContext):
@@ -141,13 +147,9 @@ async def about_msg_description(message: Message, state: FSMContext):
     if len(descr) > 200:
         return await message.answer("Описание не должно состоять из более чем 200 символов. Попробуйте снова.") # Вывод
 
-    #data = await state.get_data()
-
-    user_tid = message.from_user.id
-    #web = data['web']
-
     await state.clear()
 
+    user_tid = message.from_user.id
     web = await db.get_web_tid(user_tid)
 
     if web is None:
@@ -268,6 +270,7 @@ async def transfer_msg_owner_tid(message: Message, state: FSMContext):
 #   #   #   #   #   #   #   #   #
 
 async def admin_output(admin: dict, admin_tid: int, post: str, heir_tid: int, callback: CallbackQuery):
+    '''Функция, которая обновляет сообщение управления конкретным админом'''
     admin_id = admin['admin_id']
     admin_t = await bot.get_chat(admin_tid)
     admin_tusername = admin_t.username
@@ -338,6 +341,8 @@ async def rm_admin_chat(callback: CallbackQuery):
     await callback.answer()
 
 # Убирает наследника в паутине (если он есть)
+# Мгновенно обновляет сообщение, так что у наследника
+# сразу пропадёт корона возле имени
 
 @rt.callback_query(F.data == "rm_heir")
 async def rm_heir(callback: CallbackQuery):
@@ -410,6 +415,7 @@ async def admins(callback: CallbackQuery):
     await callback.answer()
 
 # Управление конкретным админом
+# kb.admin()
 
 @rt.callback_query(F.data.startswith("admin_"))
 async def admin(callback: CallbackQuery):
@@ -437,6 +443,9 @@ async def admin(callback: CallbackQuery):
     await admin_output(admin, admin_tid, admin['post'], web['heir_tid'], callback) # Вывод
 
 # Повышение конкретного админа
+# Повышать админов можно начиная с ранга хелпера.
+# Он же может повышать модераторов до админов.
+# Но понижать или снимать хелперов может только владелец паутины
 
 @rt.callback_query(F.data.startswith("up_"))
 async def admin_up(callback: CallbackQuery):
@@ -511,6 +520,8 @@ async def admin_up(callback: CallbackQuery):
     await admin_output(admin, admin_tid, new_post, web['heir_tid'], callback) # Вывод
 
 # Понижение конкретного админа
+# Понижать админов можно начиная с ранга хелпера.
+# Он же может понижать админов до модераторов.
 
 @rt.callback_query(F.data.startswith("down_"))
 async def admin_down(callback: CallbackQuery):
@@ -574,6 +585,8 @@ async def admin_down(callback: CallbackQuery):
     await admin_output(admin, admin_tid, new_post, web['heir_tid'], callback) # Вывод
 
 # Снятие конкретного админа
+# Снимать админов можно начиная с ранга хелпера.
+# Понижать или снимать хелперов может только владелец паутины
 
 @rt.callback_query(F.data.startswith("fire_"))
 async def admin_down(callback: CallbackQuery):
@@ -634,6 +647,7 @@ async def admin_down(callback: CallbackQuery):
     await admins(callback)
 
 # Сделать конкретного админа наследником
+# Назначать наследника паутины может только её владелец
 
 @rt.callback_query(F.data.startswith("heir_"))
 async def admin_heir(callback: CallbackQuery):
