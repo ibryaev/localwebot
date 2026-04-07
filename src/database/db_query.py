@@ -72,10 +72,24 @@ class Database():
             print(f"error: database: get_tid(): {e}")
             return None
 
+    async def rm_user(self, tid: int) -> bool:
+        '''Снимает админа с должности в конкретной сетке'''
+        try:
+            await self.cur.execute("DELETE FROM users WHERE tid = %s", (tid))
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: rm_user(): {e}")
+            await self.conn.rollback()
+            return False
+
     # webs
 
     async def mk_web(self, forename: str, owner_tid: int) -> dict:
         '''Генерирует уникальный web_id, создает паутину и делает создателя владельцем'''
+        if len(forename) > 32:
+            forename = forename[:32]
+
         try:
             web_id = await self.mkid("webs")
 
@@ -166,6 +180,18 @@ class Database():
             return True
         except Exception as e:
             print(f"error: database: upd_web_heir(): {e}")
+            await self.conn.rollback()
+            return False
+
+    async def upd_web_heirtoowner(self, web_id: str, owner_tid: int, heir_tid: int) -> bool:
+        '''Меняет TID владельца сетки на наследника'''
+        try:
+            await self.upd_web_owner(web_id, owner_tid, heir_tid)
+            await self.upd_web_heir(web_id, None)
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_web_heirtoowner(): {e}")
             await self.conn.rollback()
             return False
 

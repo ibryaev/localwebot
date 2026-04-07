@@ -72,7 +72,7 @@ async def mk_web(message: Message):
         return await message.answer("У Вас уже есть паутина.") # Вывод
 
     web = await db.mk_web(
-        forename=user_t.full_name[:32],
+        forename=user_t.full_name,
         owner_tid=user_tid
     )
 
@@ -337,10 +337,13 @@ async def mk_admin_chat(message: Message):
 
 @rt.message(Command("cancel", ignore_case=True))
 async def cancel(message: Message, state: FSMContext) -> None:
+    if message.chat.type != "private":
+        return
+
     current_state = await state.get_state()
 
     if current_state is None:
-        return
+        return await message.answer("У Вас нет активных действий.")
 
     await state.clear()
 

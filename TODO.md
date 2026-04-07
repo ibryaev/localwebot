@@ -11,7 +11,7 @@
 - [x] Trigger when bot added in chat                    ([dc6e6a0](https://github.com/ibryaev/localwebot/commit/dc6e6a01ebb56c94711c8fae08cda0d3269ceac0))
 - [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
 - [x] Finish "send request to my web" button callback   ([b37907b](https://github.com/ibryaev/localwebot/commit/b37907bd8b7d31668279bb77c2cd4488aac6ee58))
-- [x] Add heir system
+- [x] Add heir system                                   ([a8e026a](https://github.com/ibryaev/localwebot/commit/a8e026a71310f553df13c66dd1c068278f60a63b))
   - [ ] Add owner rights autoswitch for the heir when the prev owner is missing
 - [x] Add admin chat connection to web                  ([fca81ce](https://github.com/ibryaev/localwebot/commit/fca81ce95d6a5ca7c8f96a42b1a7744759e6465f))
 - [ ] Add report system

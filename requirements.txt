@@ -4,3 +4,4 @@ aiohttp-socks
 psycopg
 emoji
 python-dotenv
+apscheduler
