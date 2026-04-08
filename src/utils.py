@@ -1,19 +1,22 @@
+from aiogram.types import User
 from random import choice
-from datetime import datetime
+from babel.dates import format_date
 from config import bot
 
 async def rndemoji() -> str:
-    '''Возвращает случайный эмодзи, олицетворяющий сеть, связь, содружество и т. п.'''
-    return choice(["🌐", "🕸️", "⛓️", "🤝"])
+    '''
+    Возвращает случайный эмодзи (олицетворение сети, связи, содружества и т. п.):  
+    🌐 🕸️ ⛓️ 🤝 🔗 🧩 📡
+    '''
+    return choice(["🌐", "🕸️", "⛓️", "🤝", "🔗", "🧩", "📡"])
 
-async def date_c(date: datetime) -> str:
-    '''Получает сырой unix timestamp, возвращает string используя форматирование %c'''
-    return datetime.strftime(date, "%c")
+async def date_c(date: float) -> str:
+    '''Получает сырой unix timestamp, возвращает string используя форматирование ``d MMMM, yyyy г.`` (на русском)'''
+    return format_date(date, format="d MMMM, yyyy г.", locale="ru")
 
-async def get_chat_owner(chat_id: int) -> int:
-    '''Возвращает TID владельца данного чата'''
-    admins = await bot.get_chat_administrators(chat_id)
+async def get_chat_owner(chat_tid: int) -> User:
+    '''Возвращает владельца данного чата'''
+    admins = await bot.get_chat_administrators(chat_tid)
     for admin in admins:
-        if admin.status == 'creator':
-            owner = admin.user
-            return owner
+        if admin.status == "creator":
+            return admin.user
