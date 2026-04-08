@@ -73,9 +73,9 @@ class Database():
             return None
 
     async def rm_user(self, tid: int) -> bool:
-        '''Снимает админа с должности в конкретной сетке'''
+        '''Удаляет пользователя из БД'''
         try:
-            await self.cur.execute("DELETE FROM users WHERE tid = %s", (tid))
+            await self.cur.execute("DELETE FROM users WHERE tid = %s", (tid,))
             await self.conn.commit()
             return True
         except Exception as e:

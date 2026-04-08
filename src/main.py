@@ -1,16 +1,21 @@
 from aiogram import Dispatcher
 from asyncio import run
 
+from config import *
+import bot.schedulers as scheduler
 from bot.handlers import rt as rt_handlers
 from bot.callbacks import rt as rt_callbacks
-from config import *
 
 dp = Dispatcher()
 
 async def main() -> None:
     await db.connect()
+
+    scheduler.check_webs_owner.start()
+
     dp.include_router(rt_handlers)
     dp.include_router(rt_callbacks)
+
     print(1)
     await dp.start_polling(bot)
 
