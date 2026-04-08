@@ -7,10 +7,21 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder#, ReplyKeyboardBuilder
 from config import *
 from utils import *
 
+################
+#    Кнопки    #
+################
+
+async def button_go_back(inline_keyboard: InlineKeyboardBuilder) -> InlineKeyboardButton:
+    return inline_keyboard.add(InlineKeyboardButton(
+        text="⬅️ Обратно",
+        callback_data="get_web",
+        style="primary"
+    ))
+
 async def go_back() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Обратно", callback_data="get_web", style="primary")]
-    ])
+    inline_keyboard = InlineKeyboardBuilder()
+    await button_go_back(inline_keyboard)
+    return inline_keyboard.as_markup()
 
 async def add_to_chat() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -56,23 +67,30 @@ async def about(web_id: str, is_admin: bool = False) -> InlineKeyboardMarkup:
         callback_data=f"about_{web_id}"
     ))
     if is_admin:
-        inline_keyboard.add(InlineKeyboardButton(
-            text="⬅️ Обратно",
-            callback_data="get_web",
-            style="primary"
-        ))
+        await button_go_back(inline_keyboard)
 
     return inline_keyboard.adjust(1).as_markup()
 
-async def admins(admins: list[dict], heir_tid: int) -> InlineKeyboardMarkup:
+async def admins(admins: list[dict], owner_tid: int, heir_tid: int) -> InlineKeyboardMarkup:
     inline_keyboard = InlineKeyboardBuilder()
 
     if not admins:
+        # Технически это невозможное условие, потому что у любой паутины всегда есть админ - её владелец
         inline_keyboard.add(InlineKeyboardButton(
-            text="🔄 В этой сетке нет админов.",
+            text="🔄 Админов нет",
             callback_data="admins",
             style="danger"
         ))
+
+    web = await db.get_web_tid(owner_tid)
+    owner = await db.get_admin(owner_tid, web['web_id'])
+    if admins == [owner]:
+        inline_keyboard.add(InlineKeyboardButton(
+            text="🔄 Админов нет",
+            callback_data="admins",
+            style="danger"
+        ))
+
     else:
         for admin in admins:
             admin_t = await bot.get_chat(admin['admin_tid'])
@@ -105,11 +123,7 @@ async def admins(admins: list[dict], heir_tid: int) -> InlineKeyboardMarkup:
         callback_data="rm_admin_chat",
         style="danger"
     ))
-    inline_keyboard.add(InlineKeyboardButton(
-        text="⬅️ Обратно",
-        callback_data="get_web",
-        style="primary"
-    ))
+    await button_go_back(inline_keyboard)
 
     return inline_keyboard.adjust(2).as_markup()
 
