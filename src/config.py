@@ -29,3 +29,4 @@ bot = Bot(
 db = Database()
 
 BOT_USERNAME = "localwebot"
+BOT_FULL_NAME = "Setka (Localweb) — Бот для создания сеток чатов"
