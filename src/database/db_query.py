@@ -78,9 +78,9 @@ class Database():
         '''Получает @юзернейм пользователя по TID'''
         try:
             await self.cur.execute("SELECT username FROM users WHERE tid = %s", (tid,))
-            username = await self.cur.fetchone()
-            if username:
-                return username
+            result = await self.cur.fetchone()
+            if result and result['username']:
+                return result['username']
             else:
                 return f"<code>{tid}</code>"
         except Exception as e:
@@ -91,8 +91,8 @@ class Database():
         '''Получает TID пользователя по @юзернейму'''
         try:
             await self.cur.execute("SELECT tid FROM users WHERE username = %s", (username,))
-            tid = await self.cur.fetchone()
-            return tid
+            result = await self.cur.fetchone()
+            return result['tid'] if result else None
         except Exception as e:
             print(f"error: database: get_tid(): {e}")
             return None
@@ -197,7 +197,7 @@ class Database():
                 # Если в паутине не назначен наследник,
                 # то старый владелец становится им
                 web = await self.get_web(web_id)
-                if web and web['heir_tid']:
+                if web and web['heir_tid'] is None:
                     await self.upd_web_heir(web_id, old_owner_tid)
 
             await self.conn.commit()
@@ -373,7 +373,7 @@ class Database():
             if post == "owner":
                 # Если мы создаём владельца в паутине, в которой он уже есть,
                 # то меняем ему должность на хелпера
-                await self.cur.execute("SELECT 1 FROM admins WHERE web_id = %s AND post = owner", (web_id,))
+                await self.cur.execute("SELECT 1 FROM admins WHERE web_id = %s AND post = 'owner'", (web_id,))
                 if await self.cur.fetchone() is not None:
                     post = "helper"
 
@@ -398,7 +398,7 @@ class Database():
             )
             return await self.cur.fetchone()
         except Exception as e:
-            print(f"error: database: get_admin(): {e}")
+            print(f"error: database: get_admin_by_tid(): {e}")
             return None
 
     async def get_admin(self, admin_id: str) -> dict:
@@ -407,7 +407,7 @@ class Database():
             await self.cur.execute("SELECT * FROM admins WHERE admin_id = %s", (admin_id,))
             return await self.cur.fetchone()
         except Exception as e:
-            print(f"error: database: get_admin_id(): {e}")
+            print(f"error: database: get_admin(): {e}")
             return None
 
     async def get_web_admins(self, web_id: str) -> list[dict]:
@@ -428,7 +428,7 @@ class Database():
             if post == "owner":
                 # Если мы создаём владельца в паутине, в которой он уже есть,
                 # то меняем ему должность на хелпера
-                await self.cur.execute("SELECT 1 FROM admins WHERE web_id = %s AND post = owner", (web_id,))
+                await self.cur.execute("SELECT 1 FROM admins WHERE web_id = %s AND post = 'owner'", (web_id,))
                 if await self.cur.fetchone() is not None:
                     post = "helper"
 
@@ -449,8 +449,8 @@ class Database():
             # Проверка на то, что удаляемый админ является наследником паутины.
             # Если является - обнуляем наследника в этой паутине
             await self.cur.execute("SELECT heir_tid FROM webs WHERE web_id = %s", (web_id,))
-            heir_tid = await self.cur.fetchone()
-            if heir_tid and admin_tid == heir_tid:
+            result = await self.cur.fetchone()
+            if result and result['heir_tid'] == admin_tid:
                 await self.upd_web_heir(web_id, None)
 
             # Непосредственное удаление админа
@@ -482,7 +482,7 @@ class Database():
             restr_id = await self.mkid("restrs")
 
             await self.cur.execute(
-                "INSERT INTO restrs (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until) VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
+                "INSERT INTO restrs (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
                 (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until)
             )
             restr = await self.cur.fetchone()
@@ -496,7 +496,7 @@ class Database():
     async def get_restr(self, restr_id: str) -> dict:
         '''Получает наказание по его ID'''
         try:
-            await self.cur.execute("SELECT * FROM restrs WHERE restr_id = %s", (restr_id))
+            await self.cur.execute("SELECT * FROM restrs WHERE restr_id = %s", (restr_id),)
             return await self.cur.fetchone()
         except Exception as e:
             print(f"error: database: get_restr(): {e}")
@@ -528,7 +528,7 @@ class Database():
         try:
             await self.cur.execute(
                 "SELECT * FROM restrs WHERE admin_tid = %s AND web_id = %s",
-                admin_tid, web_id
+                (admin_tid, web_id)
             )
             return await self.cur.fetchall()
         except Exception as e:
@@ -559,7 +559,7 @@ class Database():
             await self.conn.commit()
             return True
         except Exception as e:
-            print(f"error: database: upd_restr_until(): {e}")
+            print(f"error: database: upd_restr_date_until(): {e}")
             await self.conn.rollback()
             return False
 
