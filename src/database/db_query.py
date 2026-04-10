@@ -80,9 +80,7 @@ class Database():
             await self.cur.execute("SELECT username FROM users WHERE tid = %s", (tid,))
             result = await self.cur.fetchone()
             if result and result['username']:
-                return result['username']
-            else:
-                return f"<code>{tid}</code>"
+                return result['username'] if result else None
         except Exception as e:
             print(f"error: database: get_username(): {e}")
             return None
@@ -185,12 +183,6 @@ class Database():
         ``old_owner_tid`` может быть None на случай, если Телеграм аккаунт старого владельца удалён
         '''
         try:
-            await self.cur.execute(
-                "UPDATE webs SET owner_tid = %s WHERE web_id = %s",
-                (new_owner_tid, web_id)
-            )
-            await self.upd_admin_post(new_owner_tid, web_id, "owner")
-
             if old_owner_tid is not None:
                 await self.upd_admin_post(old_owner_tid, web_id, "helper")
 
@@ -200,6 +192,11 @@ class Database():
                 if web and web['heir_tid'] is None:
                     await self.upd_web_heir(web_id, old_owner_tid)
 
+            await self.cur.execute(
+                "UPDATE webs SET owner_tid = %s WHERE web_id = %s",
+                (new_owner_tid, web_id)
+            )
+            await self.upd_admin_post(new_owner_tid, web_id, "owner")
             await self.conn.commit()
             return True
         except Exception as e:
