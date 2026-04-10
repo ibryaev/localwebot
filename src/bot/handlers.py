@@ -1,7 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, ChatMemberUpdated
-from aiogram.filters.chat_member_updated import ChatMemberUpdatedFilter, JOIN_TRANSITION#, LEAVE_TRANSITION
+from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from asyncio import sleep
 
@@ -22,9 +21,6 @@ async def introduce(message: Message):
     # Вывод
     emoji = await rndemoji()
 
-    botme = await bot.get_me()
-    bot_full_name = botme.full_name
-
     await message.answer(
         text="🫆 <i>Установка меню</i>",
         reply_markup=await kb.main_menu()
@@ -32,7 +28,7 @@ async def introduce(message: Message):
 
     await message.answer(
         text=(
-            f"{emoji} <b>{bot_full_name}</b>\n\n"
+            f"{emoji} <b>{BOT_FULL_NAME}</b>\n\n"
              "Этот бот позволяет объединить несколько чатов в одну паутину, "
              "позволяя централизировать несколько проектов и объединяться с другими чатами.\n\n"
              "🔨 <b>Глобальный бан:</b> Если забаненный в одном чате человек, "
@@ -47,10 +43,11 @@ async def introduce(message: Message):
         reply_markup=await kb.add_to_chat()
     )
 
-#########################
-#   Главное reply-меню  #
-#   kb.main_menu()      #
-#########################
+###############################################
+#   Главное reply-меню                        #
+#   kb.main_menu()                            #
+#   Все эти команды вызываются только в ЛС.   #
+###############################################
 
 # Создание паутины
 # В качестве первончального названия паутины
@@ -66,15 +63,14 @@ async def mk_web(message: Message):
     user_tid = user_t.id
     await db.mk_user(user_tid, user_t.username)
 
-    web = await db.get_web_tid(user_tid)
+    # Если у пользователя уже есть паутина
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is not None:
         return await message.answer("У Вас уже есть паутина.") # Вывод
 
-    web = await db.mk_web(
-        forename=user_t.full_name,
-        owner_tid=user_tid
-    )
+    # Непосредственное создание паутины
+    web = await db.mk_web(user_t.full_name, user_tid)
 
     if web is None:
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
@@ -92,7 +88,7 @@ async def mk_web(message: Message):
         reply_markup=await kb.add_to_chat()
     )
 
-# Добавление бота в чат
+# Кнока добавления бота в чат
 # По сути, главная функция этой кнопки - быть наполнением,
 # просто чтобы меню красиво смотрелось
 
@@ -123,13 +119,15 @@ async def get_web(message: Message):
     user_tid = user_t.id
     await db.mk_user(user_tid, user_t.username)
 
-    web = await db.get_web_tid(user_tid)
+    # Если у пользователя нет паутины
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
     msg = await message.answer("Подождите, идёт загрузка...")
 
+    # Выводим список чатов
     chats_tid = web['chats_tid']
     chats_tid_str = ""
     if not chats_tid:
@@ -137,7 +135,6 @@ async def get_web(message: Message):
     else:
         seq = 1
         for chat_tid in chats_tid:
-            #chat = await db.get_chat(chat_tid)
             chat_t = await bot.get_chat(chat_tid)
             chat_tusername = chat_t.username
             chat_ttitle = chat_t.title
@@ -168,73 +165,129 @@ async def get_web(message: Message):
         reply_markup=await kb.web_settings() 
     )
 
-#################
-#   Триггеры    #
-#################
-
-@rt.chat_member(ChatMemberUpdatedFilter(JOIN_TRANSITION))
-async def on_join_transition(event: ChatMemberUpdated) -> None:
-    user_t = event.from_user
-    chat_t = event.chat
-    chat_tid = chat_t.id
-    chat_owner_t = await get_chat_owner(chat_tid)
-
-    await db.mk_user(user_t.id, user_t.username)
-    await db.mk_user(chat_tid, chat_t.username)
-    await db.upd_chat_owner(chat_tid, chat_owner_t.id)
-
-@rt.my_chat_member(ChatMemberUpdatedFilter(JOIN_TRANSITION))
-async def on_my_join_transition(event: ChatMemberUpdated):
-    chat_t = event.chat
-    chat_tid = chat_t.id
-    chat_owner_t = await get_chat_owner(chat_tid)
-
-    await db.mk_user(chat_tid, chat_t.username)
-    await db.upd_chat_owner(chat_tid, chat_owner_t.id)
-
-    chat = await db.get_chat(chat_tid)
-
-    if chat is not None:
-        return await event.answer("&gt;_&lt;") # Вывод (">_<". Особенности HTML)
-
-    # Вывод
-    emoji = await rndemoji()
-
-    await event.answer(
-        text=(
-            f"{emoji} <b>Этот чат не состоит ни в какой паутине</b>\n"
-             "Кто-нибудь, у кого она есть, должен написать команду <code>паутина</code>."
-        )
-    )
-
 #####################################
 #   Команды для групповых чатов     #
 #####################################
 
-# Выводит информацию о паутине, в которой состоит этот чат
-# Но если чат не состоит ни в какой паутине, то:
-# 1. Если у человека, который прописывает эту команду, 
-#    тоже нет паутины - ответ что чат свободен;
-# 2. !1. - к ответу добавляет клавиатура (с одной кнопкой),
-#    нажать на которую может только владелец этого чата.
-#    Эта кнопка включит этот чат в паутину этого человека;
-# 3. Если команду прописал сам владелец чата и у него есть своя паутина -
-#    мгновенно включает его чат в его паутину.
+# Добавление чата в паутину (+паутина)
+# Записывает чат в БД и привязывает к паутине пользователя.
+# Если команду вводит не владелец чата — отправляет предложение владельцу.
 
 @rt.message(F.text.casefold() == "+паутина")
-async def mk_chat(message: Message):
+async def add_chat(message: Message):
     if message.chat.type not in ("group", "supergroup"):
         return
 
     user_t = message.from_user
     chat_t = message.chat
+    chat_tid = chat_t.id
+    chat_owner_t = await get_chat_owner(chat_tid)
+    user_tid = user_t.id
+    chat_owner_tid = chat_owner_t.id
+
+    await db.mk_user(user_tid, user_t.username)
+    await db.mk_user(chat_tid, chat_t.username)
+    await db.mk_user(chat_owner_tid, chat_owner_t.username)
+    await db.upd_chat_owner(chat_tid, chat_owner_tid)
+
+    chat = await db.get_chat(chat_tid)
+    user_web = await db.get_web_by_owner_tid(user_tid)
+    chat_owner_web = await db.get_web_by_owner_tid(chat_owner_tid)
+
+    if chat:
+        return await get_chat(message) # Вывод
+
+    if chat is None and user_tid != chat_owner_tid:
+        if user_web is None and chat_owner_web is None:
+            return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывод
+
+        elif user_web and chat_owner_web is None:
+            chat_owner_tusername = chat_owner_t.username
+            chat_owner_tfull_name = chat_owner_t.full_name
+            chat_owner_link = f"@{chat_owner_tusername}" if chat_owner_tusername else chat_owner_tfull_name
+            return await message.reply(
+                # Вывод
+                text=f"{chat_owner_link}, этот пользователь предлагает Вам включить свой чат в <b>его</b> паутину.",
+                reply_markup=await kb.accept_invite_web(user_tid)
+            )
+
+    elif chat is None and user_tid == chat_owner_tid:
+        if chat_owner_web is None:
+            return await message.reply("У Вас нет паутины. Сначала создайте её в ЛС с ботом.") # Вывод
+        else:
+            chat_ttitle = chat_t.title
+            chat_owner_web_forename = chat_owner_web['forename']
+            
+            chat = await db.mk_chat(chat_tid, chat_ttitle, chat_owner_web['web_id'], chat_owner_tid)
+
+            if chat is None:
+                return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+            return await message.reply(f"✅ Чат <b>{chat_ttitle}</b> успешно добавлен в паутину <b>{chat_owner_web_forename}</b>!") # Вывод
+
+# Удаление чата из паутины (-паутина)
+# Убирает привязку чата к текущей паутине в БД.
+# Совершить действие может либо владелец самого чата, либо владелец паутины.
+
+@rt.message(F.text.casefold() == "-паутина")
+async def rm_chat(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    user_t = message.from_user
+    chat_t = message.chat
+    chat_tid = chat_t.id
+    chat_owner_t = await get_chat_owner(chat_tid)
+    user_tid = user_t.id
+    chat_owner_tid = chat_owner_t.id
+
+    await db.mk_user(user_tid, user_t.username)
+    await db.mk_user(chat_tid, chat_t.username)
+    await db.mk_user(chat_owner_tid, chat_owner_t.username)
+    await db.upd_chat_owner(chat_tid, chat_owner_tid)
+
+    chat = await db.get_chat(chat_tid)
+
+    if chat is None:
+        return await message.reply("Этот чат и так не состоит ни в какой паутине.") # Вывод
+
+    web_id = chat['web_id']
+    web = await db.get_web(web_id)
+    
+    if web is None:
+        return await message.reply("Непредвиденная ошибка. Паутина не найдена.") # Вывод
+        
+    web_owner_tid = web['owner_tid']
+    forename = web['forename']
+
+    # Удалить чат из сетки может либо владелец самого чата, либо владелец паутины
+    if user_tid == chat_owner_tid or user_tid == web_owner_tid:
+        result = await db.rm_chat(chat_tid, web_id)
+
+        if not result:
+            return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+        return await message.reply(f"🗑 Чат успешно удалён из паутины <b>{forename}</b>.") # Вывод
+    else:
+        return await message.reply("У Вас нет прав для удаления этого чата из паутины.") # Вывод
+
+# Информация о паутине чата (паутина)
+# Выводит карточку с данными паутины, к которой привязан текущий чат:
+# эмодзи, название, юзернейм владельца и наследника.
+
+@rt.message(F.text.casefold() == "паутина")
+async def get_chat(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    user_t = message.from_user
+    chat_t = message.chat
+    chat_tid = chat_t.id
     user_tid = user_t.id
     user_tusername = user_t.username
-    chat_tid = chat_t.id
     chat_owner_t = await get_chat_owner(chat_tid)
     chat_owner_tid = chat_owner_t.id
     chat_owner_tusername = chat_owner_t.username
-    chat_owner_tfull_name = chat_owner_t.full_name
 
     await db.mk_user(user_tid, user_tusername)
     await db.mk_user(chat_tid, chat_t.username)
@@ -244,51 +297,43 @@ async def mk_chat(message: Message):
     chat = await db.get_chat(chat_tid)
 
     if chat is None:
-        web = await db.get_web_tid(user_tid)
-        owner_web = await db.get_web_tid(chat_owner_tid)
+        return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывод
 
-        if web is None and owner_web is None:
-            return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывыд
-
-        elif web is not None and owner_web is None and user_tid != chat_owner_tid:
-            owner_link = f"@{chat_owner_tusername}" if chat_owner_tusername else chat_owner_tfull_name
-            return await message.reply(
-                # Вывод
-                text=f"{owner_link}, этот пользователь предлагает Вам включить свой чат в <b>его</b> паутину.",
-                reply_markup=await kb.accept_invite_web(user_tid)
-            )
-
-        chat = await db.mk_chat(chat_tid, web['web_id'], chat_owner_tid)
-
-        if chat is None:
-            return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
-
-        return await message.reply(f"✅ Чат <b>{chat_t.title}</b> успешно добавлен в паутину <b>{web['forename']}</b>!") # Вывод
-
-    # Вывод
     web_id = chat['web_id']
     web = await db.get_web(web_id)
+    
+    if chat is None:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     emoji = web['emoji'] or await rndemoji()
     forename = web['forename']
     web_owner_tid = web['owner_tid']
-    web_owner = await bot.get_chat(web_owner_tid)
-    web_owner_username = web_owner.username
-    web_owner_full_name = web_owner.full_name
-    web_owner_link = f"<a href='https://t.me/{web_owner_username}'>{web_owner_full_name}</a>" if web_owner_username else web_owner_full_name
+    
+    # Получаем юзернейм/имя владельца паутины
+    web_owner_username = await db.get_username(web_owner_tid)
+    if web_owner_username.startswith("<code>"):
+        # Если юзернейма нет
+        web_owner_tlink = web_owner_username # Временное решение
+    else:
+        web_owner_tlink = f"<a href='https://t.me/{web_owner_username}'>@{web_owner_username}</a>"
+
+    # Получаем юзернейм/имя наследника паутины
     if web['heir_tid']:
         web_heir_tid = web['heir_tid']
-        web_heir = await bot.get_chat(web_heir_tid)
-        web_heir_username = web_heir.username
-        web_heir_full_name = web_heir.full_name
-        web_heir_link = f"<a href='https://t.me/{web_heir_username}'>{web_heir_full_name}</a>" if web_heir_username else web_heir_full_name
+        web_heir_username = await db.get_username(web_heir_tid)
+        if web_heir_username.startswith("<code>"):
+            # Если юзернейма нет
+            web_heir_link = web_heir_username # Временное решение
+        else:
+            web_heir_link = f"<a href='https://t.me/{web_heir_username}'>@{web_heir_username}</a>"
     else:
         web_heir_link = "Отсутствует"
     
     return await message.reply(
+        # Вывод
         text=(
             f"{emoji} Этот чат состоит в паутине <b>{forename}</b>\n"
-            f"Владелец: <b>{web_owner_link}</b> | Наследник: <b>{web_heir_link}</b>"
+            f"Владелец: <b>{web_owner_tlink}</b> | Наследник: <b>{web_heir_link}</b>"
         ),
         reply_markup=await kb.about(web_id)
     )
@@ -304,6 +349,7 @@ async def mk_admin_chat(message: Message):
     chat_t = message.chat
     user_tid = user_t.id
     chat_tid = chat_t.id
+
     await db.mk_user(user_tid, user_t.username)
     await db.mk_user(chat_tid, chat_t.username)
 
