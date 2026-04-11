@@ -41,6 +41,30 @@ async def introduce(message: Message):
         reply_markup=await kb.add_to_chat()
     )
 
+# @rt.message(F.text.casefold() == "кинг" | "пинг" | "пиу" | "бот" | "пиф")
+@rt.message(F.text.casefold() == "кинг")
+@rt.message(F.text.casefold() == "пинг")
+@rt.message(F.text.casefold() == "пиу")
+@rt.message(F.text.casefold() == "бот")
+@rt.message(F.text.casefold() == "пиф")
+async def ping(message: Message):
+    text = message.text.lower()
+    reply = ""
+
+    match text:
+        case "кинг":
+            reply = "конг"
+        case "пинг":
+            reply = "понг"
+        case "пиу":
+            reply = "пау"
+        case "бот":
+            reply = "✅ На месте"
+        case "пиф":
+            reply = "паф"
+
+    await message.reply(reply.title())
+
 ###############################################
 #   Главное reply-меню                        #
 #   kb.main_menu()                            #

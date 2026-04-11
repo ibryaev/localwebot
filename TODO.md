@@ -23,4 +23,4 @@
 - [x] Store more profiles info in `users` table in db   ([b6eea9a](https://github.com/ibryaev/localwebot/commit/b6eea9a3ec8e9adafdf398fd91c41e38ab278fb4))
 - [ ] Implement ability to add admin in web
 - [ ] Implement ban & mute
-- [ ] Add ability to view web's chats list from chat from this web
+- [x] Add ability to view web's chats list from chat from this web ([b8f8089](https://github.com/ibryaev/localwebot/commit/b8f8089c4fd785c5ef52b07b57d2b0950b3891cf))
