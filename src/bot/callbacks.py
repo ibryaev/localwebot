@@ -72,12 +72,12 @@ async def rename(callback: CallbackQuery, state: FSMContext):
 async def rename_msg_forename(message: Message, state: FSMContext):
     forename = replace_emoji(message.text, "")
 
-    if len(forename) > 32:
+    if len(forename) > 64:
         return await message.answer(
             # Вывод
             text=(
-                 "Имя паутины не должно быть длинее 32 символов. Попробуйте снова."
-                f"Может <code>{forename[:32]}</code>?"
+                 "Имя паутины не должно быть длинее 32 символов. Попробуйте снова. "
+                f"Может <code>{forename[:64]}</code>?"
             )
         )
 
@@ -147,7 +147,13 @@ async def about_msg_description(message: Message, state: FSMContext):
     descr = message.text
 
     if len(descr) > 200:
-        return await message.answer("Описание не должно состоять из более чем 200 символов. Попробуйте снова.") # Вывод
+        return await message.answer(
+            # Вывод
+            text=(
+                 "Описание не должно быть длинее 200 символов. Попробуйте снова. "
+                f"Урезанное описание:\n<pre>{descr[:200]}</pre>"
+            )
+        )
 
     await state.clear()
 
@@ -260,7 +266,10 @@ async def transfer_msg_owner_tid(message: Message, state: FSMContext):
     if is_new_owner_admin is None:
         return await message.answer("Новый владелец паутины должен обладать в ней хоть какой-нибудь должностью.") # Вывод
 
-    result = await db.upd_web_owner(web_id, message.from_user.id, new_owner_tid)
+    if await db.get_web_by_owner_tid(new_owner_tid) is not None:
+        return await message.answer("У этого пользователя уже есть своя паутина. Один человек может иметь только одну паутину.") # Вывод
+
+    result = await db.upd_web_owner(web_id, new_owner_tid, message.from_user.id)
 
     if not result:
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
@@ -274,10 +283,8 @@ async def transfer_msg_owner_tid(message: Message, state: FSMContext):
 async def admin_output(admin: dict, admin_tid: int, post: str, heir_tid: int, callback: CallbackQuery):
     '''Функция, которая обновляет сообщение управления конкретным админом'''
     admin_id = admin['admin_id']
-    admin_t = await bot.get_chat(admin_tid)
-    admin_tusername = admin_t.username
-    admin_tfull_name = admin_t.full_name
-    admin_tlink = f"<a href='https://t.me/{admin_tusername}'>{admin_tfull_name}</a>" if admin_tusername else admin_tfull_name
+    admin_db = await db.get_user_by_tid(admin_tid)
+    admin_link = admin_db['link'] if admin_db else f"<code>{admin_tid}</code>"
     post = admin_type_str[post]
     heir = ""
     if admin_tid == heir_tid:
@@ -287,7 +294,7 @@ async def admin_output(admin: dict, admin_tid: int, post: str, heir_tid: int, ca
 
     await callback.message.edit_text(
         text=(
-            f"🛡️ <b>{admin_tlink}</b> — <b>{post}</b>{heir}\n"
+            f"🛡️ <b>{admin_link}</b> — <b>{post}</b>{heir}\n"
             f"Был нанят: <b>{date_reg}</b> | Выдано наказаний: <b>{restrs_count}</b>\n\n"
         ),
         reply_markup=await kb.admin(admin_id)
@@ -318,25 +325,24 @@ async def rm_admin_chat(callback: CallbackQuery):
             show_alert=True
         )
 
-    admin_chat_t = await bot.get_chat(admin_chat_tid)
-    admin_chat_tusername = admin_chat_t.username
-    admin_chat_ttitle = admin_chat_t.title
-    admin_chat_tlink = f"<a href='{admin_chat_tusername}>{admin_chat_ttitle}</a>" if admin_chat_tusername else admin_chat_ttitle
+    admin_chat = await db.get_user_by_tid(admin_chat_tid)
+    admin_chat_link = admin_chat['link'] if admin_chat else f"<code>{admin_chat_tid}</code>"
 
     result = await db.upd_web_admin_chat_tid(web_id, None)
 
     if not result:
-        return await callback.message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        # Вывод
+        await callback.message.answer("Непредвиденная ошибка. Попробуйте позже.") 
+        return await callback.answer()
 
     # Вывод
     await callback.message.answer(
         text=(
-            f"Вы отняли у чата {admin_chat_tlink} статус админского. "
+            f"Вы отняли у чата {admin_chat_link} статус админского. "
              "Теперь у Вашей паутины нет админского чата."
-        ),
-        show_alert=True
+        )
     )
-    await callback.answer()
+    return await callback.answer()
 
 # Убирает наследника в паутине (если он есть)
 # Мгновенно обновляет сообщение, так что у наследника
@@ -363,12 +369,9 @@ async def rm_heir(callback: CallbackQuery):
             show_alert=True
         )
 
-    heir_t = await bot.get_chat(heir_tid)
-    heir_tusername = heir_t.username
-    heir_tfull_name = heir_t.full_name
-    heir_tlink = f"<a href='https://t.me/{heir_tusername}'>{heir_tfull_name}</a>" if heir_tusername else heir_tfull_name
+    heir = await db.get_user_by_tid(heir_tid)
+    heir_link = heir['link'] if heir else f"<code>{heir_tid}</code>"
 
-    result = await db.upd_web_admin_chat_tid(web_id, None)
     result = await db.upd_web_heir(web_id, None)
 
     if not result:
@@ -378,7 +381,7 @@ async def rm_heir(callback: CallbackQuery):
     await admins(callback)
     await callback.message.answer(
         text=(
-            f"Вы отняли у пользователя {heir_tlink} статус наследника. "
+            f"Вы отняли у пользователя {heir_link} статус наследника. "
              "Теперь у Вашей паутины нет наследника."
         ),
         show_alert=True
@@ -625,7 +628,7 @@ async def admin_fire(callback: CallbackQuery):
     if post == "owner":
         return await callback.answer(
             # Вывод
-            text="Нельзя менять права владельцу чата.",
+            text="У паутины обязан быть владелец.",
             show_alert=True
         )
     elif post == "helper":
@@ -753,8 +756,15 @@ async def admin_transfer(callback: CallbackQuery):
         )
 
     if admin_tid == owner_tid:
+        # Технически невозможное условие
         return await callback.answer(
             text="Вы и так являетесь владельцем.",
+            show_alert=True
+        )
+
+    if await db.get_web_by_owner_tid(admin_tid) is not None:
+        return await callback.answer(
+            text="У этого администратора уже есть своя паутина.",
             show_alert=True
         )
 
@@ -777,7 +787,8 @@ async def admin_transfer(callback: CallbackQuery):
 async def get_web(callback: CallbackQuery):
     user_t = callback.from_user
     user_tid = user_t.id
-    await db.mk_user(user_tid, user_t.username)
+
+    await db.mk_user(user=user_t)
 
     web = await db.get_web_by_owner_tid(user_tid)
 
@@ -787,6 +798,7 @@ async def get_web(callback: CallbackQuery):
 
     await callback.message.edit_text("Подождите, идёт загрузка...")
 
+    # Выводим список чатов
     chats_tid = web['chats_tid']
     chats_tid_str = ""
     if not chats_tid:
@@ -794,17 +806,16 @@ async def get_web(callback: CallbackQuery):
     else:
         seq = 1
         for chat_tid in chats_tid:
-            #chat = await db.get_chat(chat_tid)
-            chat_t = await bot.get_chat(chat_tid)
-            chat_tusername = chat_t.username
-            chat_ttitle = chat_t.title
-            chat_tlink = f"<a href='https://t.me/{chat_tusername}'>{chat_ttitle}</a>" if chat_tusername else chat_ttitle
-            chats_tid_str += f"{seq}. <b>{chat_tlink}</b>"
+            chat = await db.get_user_by_tid(chat_tid)
+            if chat is None:
+                chat_link = chat_tid
+            else:
+                chat_link = chat['link']
+            chats_tid_str += f"{seq}. <b>{chat_link}</b>"
             if web['admin_chat_tid'] == chat_tid:
                 chats_tid_str += " <i>(адм)</i>"
             chats_tid_str += "\n"
             seq += 1
-            await sleep(2.0) # Чтобы Телеграм не жаловался на большое количество обращений. TODO Хранить в БД имя чата
 
     # Вывод
     emoji = web['emoji'] or await rndemoji()

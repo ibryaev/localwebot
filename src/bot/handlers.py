@@ -15,8 +15,7 @@ async def introduce(message: Message):
     if message.chat.type != "private":
         return
 
-    user_t = message.from_user
-    await db.mk_user(user_t.id, user_t.username)
+    await db.mk_user(user=message.from_user)
 
     # Вывод
     emoji = await rndemoji()
@@ -61,11 +60,11 @@ async def mk_web(message: Message):
 
     user_t = message.from_user
     user_tid = user_t.id
-    await db.mk_user(user_tid, user_t.username)
+
+    await db.mk_user(user=user_t)
 
     # Если у пользователя уже есть паутина
     web = await db.get_web_by_owner_tid(user_tid)
-
     if web is not None:
         return await message.answer("У Вас уже есть паутина.") # Вывод
 
@@ -97,8 +96,7 @@ async def add_to_chat(message: Message):
     if message.chat.type != "private":
         return
 
-    user_t = message.from_user
-    await db.mk_user(user_t.id, user_t.username)
+    await db.mk_user(user=message.from_user)
 
     # Вывод
     await message.answer(
@@ -116,11 +114,11 @@ async def get_web(message: Message):
         return
 
     user_t = message.from_user
-    user_tid = user_t.id
-    await db.mk_user(user_tid, user_t.username)
+
+    await db.mk_user(user=user_t)
 
     # Если у пользователя нет паутины
-    web = await db.get_web_by_owner_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_t.id)
 
     if web is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
@@ -135,24 +133,23 @@ async def get_web(message: Message):
     else:
         seq = 1
         for chat_tid in chats_tid:
-            chat_t = await bot.get_chat(chat_tid)
-            chat_tusername = chat_t.username
-            chat_ttitle = chat_t.title
-            chat_tlink = f"<a href='https://t.me/{chat_tusername}'>{chat_ttitle}</a>" if chat_tusername else chat_ttitle
-            chats_tid_str += f"{seq}. <b>{chat_tlink}</b>"
+            chat = await db.get_user_by_tid(chat_tid)
+            if chat is None:
+                chat_link = chat_tid
+            else:
+                chat_link = chat['link']
+            chats_tid_str += f"{seq}. <b>{chat_link}</b>"
             if web['admin_chat_tid'] == chat_tid:
                 chats_tid_str += " <i>(адм)</i>"
             chats_tid_str += "\n"
             seq += 1
-            await sleep(2.0) # Чтобы Телеграм не жаловался на большое количество обращений. TODO Хранить в БД имя чата
 
     # Вывод
-    emoji = web['emoji'] or await rndemoji()
-    forename = web['forename']
-    date_reg = await date_c(web['date_reg'])
     web_id = web['web_id']
-    descr = web['descr']
-    descr = descr if descr else "Описание отсутствует."
+    forename = web['forename']
+    emoji = web['emoji'] or await rndemoji()
+    descr = web['descr'] or "Описание отсутствует."
+    date_reg = await date_c(web['date_reg'])
 
     await msg.edit_text(
         text=(
@@ -180,14 +177,15 @@ async def add_chat(message: Message):
 
     user_t = message.from_user
     chat_t = message.chat
-    chat_tid = chat_t.id
-    chat_owner_t = await get_chat_owner(chat_tid)
+    chat_owner_t = await get_chat_owner(chat_t.id)
+
     user_tid = user_t.id
+    chat_tid = chat_t.id
     chat_owner_tid = chat_owner_t.id
 
-    await db.mk_user(user_tid, user_t.username)
-    await db.mk_user(chat_tid, chat_t.username)
-    await db.mk_user(chat_owner_tid, chat_owner_t.username)
+    await db.mk_user(user=user_t)
+    await db.mk_user(chat=chat_t)
+    await db.mk_user(user=chat_owner_t)
     await db.upd_chat_owner(chat_tid, chat_owner_tid)
 
     chat = await db.get_chat(chat_tid)
@@ -197,33 +195,35 @@ async def add_chat(message: Message):
     if chat:
         return await get_chat(message) # Вывод
 
-    if chat is None and user_tid != chat_owner_tid:
-        if user_web is None and chat_owner_web is None:
-            return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывод
+    else:
+        if user_tid != chat_owner_tid:
+            if user_web is None:
+                return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывод
 
-        elif user_web and chat_owner_web is None:
-            chat_owner_tusername = chat_owner_t.username
-            chat_owner_tfull_name = chat_owner_t.full_name
-            chat_owner_link = f"@{chat_owner_tusername}" if chat_owner_tusername else chat_owner_tfull_name
-            return await message.reply(
-                # Вывод
-                text=f"{chat_owner_link}, этот пользователь предлагает Вам включить свой чат в <b>его</b> паутину.",
-                reply_markup=await kb.accept_invite_web(user_tid)
-            )
+            else:
+                chat_owner_tusername = chat_owner_t.username
+                chat_owner_tfull_name = chat_owner_t.full_name
+                chat_owner_link = f"@{chat_owner_tusername}" if chat_owner_tusername else chat_owner_tfull_name
+                return await message.reply(
+                    # Вывод
+                    text=f"{chat_owner_link}, этот пользователь предлагает Вам включить свой чат в <b>его</b> паутину.",
+                    reply_markup=await kb.accept_invite_web(user_tid)
+                )
 
-    elif chat is None and user_tid == chat_owner_tid:
-        if chat_owner_web is None:
-            return await message.reply("У Вас нет паутины. Сначала создайте её в ЛС с ботом.") # Вывод
         else:
-            chat_ttitle = chat_t.title
-            chat_owner_web_forename = chat_owner_web['forename']
-            
-            chat = await db.mk_chat(chat_tid, chat_ttitle, chat_owner_web['web_id'], chat_owner_tid)
+            if chat_owner_web is None:
+                return await message.reply("У Вас нет паутины. Сначала создайте её в ЛС с ботом.") # Вывод
 
-            if chat is None:
-                return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+            else:
+                chat_ttitle = chat_t.title
+                chat_owner_web_forename = chat_owner_web['forename']
+                
+                chat = await db.mk_chat(chat_tid, chat_owner_web['web_id'], chat_owner_tid)
 
-            return await message.reply(f"✅ Чат <b>{chat_ttitle}</b> успешно добавлен в паутину <b>{chat_owner_web_forename}</b>!") # Вывод
+                if chat is None:
+                    return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+                return await message.reply(f"✅ Чат <b>{chat_ttitle}</b> успешно добавлен в паутину <b>{chat_owner_web_forename}</b>!") # Вывод
 
 # Удаление чата из паутины (-паутина)
 # Убирает привязку чата к текущей паутине в БД.
@@ -236,14 +236,15 @@ async def rm_chat(message: Message):
 
     user_t = message.from_user
     chat_t = message.chat
-    chat_tid = chat_t.id
-    chat_owner_t = await get_chat_owner(chat_tid)
+    chat_owner_t = await get_chat_owner(chat_t.id)
+
     user_tid = user_t.id
+    chat_tid = chat_t.id
     chat_owner_tid = chat_owner_t.id
 
-    await db.mk_user(user_tid, user_t.username)
-    await db.mk_user(chat_tid, chat_t.username)
-    await db.mk_user(chat_owner_tid, chat_owner_t.username)
+    await db.mk_user(user=user_t)
+    await db.mk_user(chat=chat_t)
+    await db.mk_user(user=chat_owner_t)
     await db.upd_chat_owner(chat_tid, chat_owner_tid)
 
     chat = await db.get_chat(chat_tid)
@@ -258,7 +259,7 @@ async def rm_chat(message: Message):
         return await message.reply("Непредвиденная ошибка. Паутина не найдена.") # Вывод
         
     web_owner_tid = web['owner_tid']
-    forename = web['forename']
+    web_forename = web['forename']
 
     # Удалить чат из сетки может либо владелец самого чата, либо владелец паутины
     if user_tid == chat_owner_tid or user_tid == web_owner_tid:
@@ -267,7 +268,7 @@ async def rm_chat(message: Message):
         if not result:
             return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-        return await message.reply(f"🗑 Чат успешно удалён из паутины <b>{forename}</b>.") # Вывод
+        return await message.reply(f"🗑 Чат успешно удалён из паутины <b>{web_forename}</b>.") # Вывод
     else:
         return await message.reply("У Вас нет прав для удаления этого чата из паутины.") # Вывод
 
@@ -282,17 +283,14 @@ async def get_chat(message: Message):
 
     user_t = message.from_user
     chat_t = message.chat
-    chat_tid = chat_t.id
-    user_tid = user_t.id
-    user_tusername = user_t.username
-    chat_owner_t = await get_chat_owner(chat_tid)
-    chat_owner_tid = chat_owner_t.id
-    chat_owner_tusername = chat_owner_t.username
+    chat_owner_t = await get_chat_owner(chat_t.id)
 
-    await db.mk_user(user_tid, user_tusername)
-    await db.mk_user(chat_tid, chat_t.username)
-    await db.mk_user(chat_owner_tid, chat_owner_tusername)
-    await db.upd_chat_owner(chat_tid, chat_owner_tid)
+    chat_tid = chat_t.id
+
+    await db.mk_user(user=user_t)
+    await db.mk_user(chat=chat_t)
+    await db.mk_user(user=chat_owner_t)
+    await db.upd_chat_owner(chat_tid, chat_owner_t.id)
 
     chat = await db.get_chat(chat_tid)
 
@@ -305,35 +303,25 @@ async def get_chat(message: Message):
     if chat is None:
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    emoji = web['emoji'] or await rndemoji()
-    forename = web['forename']
-    web_owner_tid = web['owner_tid']
-    
-    # Получаем юзернейм/имя владельца паутины
-    web_owner_username = await db.get_username(web_owner_tid)
-    if web_owner_username.startswith("<code>"):
-        # Если юзернейма нет
-        web_owner_tlink = web_owner_username # Временное решение
-    else:
-        web_owner_tlink = f"<a href='https://t.me/{web_owner_username}'>@{web_owner_username}</a>"
+    web_emoji = web['emoji'] or await rndemoji()
+    web_forename = web['forename']
 
-    # Получаем юзернейм/имя наследника паутины
+    web_owner_tid = web['owner_tid']
+    web_owner = await db.get_user_by_tid(web_owner_tid)
+    web_owner_link = web_owner['link']
+
     if web['heir_tid']:
         web_heir_tid = web['heir_tid']
-        web_heir_username = await db.get_username(web_heir_tid)
-        if web_heir_username.startswith("<code>"):
-            # Если юзернейма нет
-            web_heir_link = web_heir_username # Временное решение
-        else:
-            web_heir_link = f"<a href='https://t.me/{web_heir_username}'>@{web_heir_username}</a>"
+        web_heir = await db.get_user_by_tid(web_heir_tid)
+        web_heir_link = web_heir['link']
     else:
         web_heir_link = "Отсутствует"
     
     return await message.reply(
         # Вывод
         text=(
-            f"{emoji} Этот чат состоит в паутине <b>{forename}</b>\n"
-            f"Владелец: <b>{web_owner_tlink}</b> | Наследник: <b>{web_heir_link}</b>"
+            f"{web_emoji} Этот чат состоит в паутине <b>{web_forename}</b>\n"
+            f"Владелец: <b>{web_owner_link}</b> | Наследник: <b>{web_heir_link}</b>"
         ),
         reply_markup=await kb.about(web_id)
     )
@@ -347,11 +335,12 @@ async def mk_admin_chat(message: Message):
 
     user_t = message.from_user
     chat_t = message.chat
+
     user_tid = user_t.id
     chat_tid = chat_t.id
 
-    await db.mk_user(user_tid, user_t.username)
-    await db.mk_user(chat_tid, chat_t.username)
+    await db.mk_user(user=user_t)
+    await db.mk_user(chat=chat_t)
 
     chat = await db.get_chat(chat_tid)
 

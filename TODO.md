@@ -19,3 +19,4 @@
 - [ ] Add schedulers:
   - [ ] Add scheduler for restrictions (restrs table): bans & mutes
   - [x] Add scheduler for webs, where creator's account got deleted ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
+- [x] Store more profiles info in `users` table in db

@@ -1,5 +1,6 @@
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+from aiogram.types import User, Chat
 
 from emoji import is_emoji
 from random import choice
@@ -44,34 +45,56 @@ class Database():
     #    rm_user()  get_tid()         #
     ###################################
 
-    async def mk_user(self, tid: int, username: str = None) -> dict:
+    async def mk_user(self, user: User = None, chat: Chat = None) -> dict:
         '''
-        Записывает TID и username (если дан) пользователя в БД. Если он уже есть - обновляет ``username``.  
-        Возвращает словарь с данными: ``tid`` и ``username``
+        Записывает данные пользователя/чата в БД. Если они уже есть - обновляет их.  
+        Возвращает словарь с данными. Принимает строго либо user, либо chat.
         '''
+        if bool(user) == bool(chat):
+            return None
+
+        tid = user.id if user else chat.id
+        first_name_title = user.first_name if user else chat.title
+        last_name = user.last_name if user else None
+        full_name = user.full_name if user else first_name_title
+        username = user.username if user else chat.username
+        link = f"<a href='https://t.me/{username}'>{full_name}</a>" if username else full_name
+
         try:
             if username is not None:
-                if len(username) > 32:
-                    # Если данный @юзернейм больше 32 символов - просто урезаю
-                    username = username[:32]
-
-                # Если в БД есть пользователь с такимже юзернеймом, то устаналиваем
-                # ему его на NULL, т. к. если его юз занят кем-то другим, то значит что он уже изменил его
+                # Если в БД есть запись с такимже юзернеймом, то устаналиваем
+                # её на NULL, т. к. если его юз занят кем-то другим, то значит что изначальный владелец уже изменил его
                 await self.cur.execute(
                     "UPDATE users SET username = NULL WHERE username = %s AND tid != %s",
                     (username, tid)
                 )
 
             await self.cur.execute(
-                "INSERT INTO users (tid, username) VALUES (%s, %s) ON CONFLICT (tid) DO UPDATE SET username = EXCLUDED.username RETURNING *",
-                (tid, username)
+                """INSERT INTO users (tid, first_name_title, last_name, full_name, username, link) VALUES (%s, %s, %s, %s, %s, %s) 
+                   ON CONFLICT (tid) DO UPDATE SET 
+                   username = EXCLUDED.username,
+                   first_name_title = EXCLUDED.first_name_title,
+                   last_name = EXCLUDED.last_name,
+                   full_name = EXCLUDED.full_name,
+                   link = EXCLUDED.link
+                   RETURNING *""",
+                (tid, first_name_title, last_name, full_name, username, link)
             )
-            user = await self.cur.fetchone()
+            result = await self.cur.fetchone()
             await self.conn.commit()
-            return user
+            return result
         except Exception as e:
             print(f"error: database: mk_user(): {e}")
             await self.conn.rollback()
+            return None
+
+    async def get_user_by_tid(self, tid: int) -> str:
+        '''Получает пользователя по TID'''
+        try:
+            await self.cur.execute("SELECT * FROM users WHERE tid = %s", (tid,))
+            return await self.cur.fetchone()
+        except Exception as e:
+            print(f"error: database: get_username(): {e}")
             return None
 
     async def get_username(self, tid: int) -> str:
@@ -183,13 +206,23 @@ class Database():
         ``old_owner_tid`` может быть None на случай, если Телеграм аккаунт старого владельца удалён
         '''
         try:
+            web = await self.get_web(web_id)
+            if not web:
+                return False
+                
+            heir_tid = web['heir_tid']
+
+            # Если новый владелец был наследником, забираем у него эту должность
+            if heir_tid == new_owner_tid:
+                await self.upd_web_heir(web_id, None)
+                heir_tid = None
+
             if old_owner_tid is not None:
                 await self.upd_admin_post(old_owner_tid, web_id, "helper")
 
                 # Если в паутине не назначен наследник,
                 # то старый владелец становится им
-                web = await self.get_web(web_id)
-                if web and web['heir_tid'] is None:
+                if heir_tid is None:
                     await self.upd_web_heir(web_id, old_owner_tid)
 
             await self.cur.execute(
@@ -222,7 +255,7 @@ class Database():
         '''
         Меняет TID владельца паутины на наследника.  
         Эта функция лишь использует две другие функции: ``upd_web_owner()`` и ``upd_web_heir()``.
-        Если передать ``owner_tid``, то старый владелец станет Хелпером и наследником.
+        Если передать ``owner_tid``, то старый владелец станет хелпером и новым наследником.
         '''
         try:
             await self.upd_web_heir(web_id, None)
@@ -287,17 +320,13 @@ class Database():
     #    rm_chat()  upd_chat_owner()    #
     #####################################
 
-    async def mk_chat(self, chat_tid: int, title: str, web_id: str, owner_tid: int) -> dict:
+    async def mk_chat(self, chat_tid: int, web_id: str, owner_tid: int) -> dict:
         '''Создает чат и добавляет его в список чатов паутины'''
-        if len(title) > 128:
-            # Если данное название больше 128 символов - просто урезаю
-            title = title[:128]
-
         try:
             await self.cur.execute(
                 # Создаю запись чата в таблице chats
-                "INSERT INTO chats (chat_tid, title, web_id, owner_tid) VALUES (%s, %s, %s, %s) RETURNING *",
-                (chat_tid, title, web_id, owner_tid)
+                "INSERT INTO chats (chat_tid, web_id, owner_tid) VALUES (%s, %s, %s) RETURNING *",
+                (chat_tid, web_id, owner_tid)
             )
             chat = await self.cur.fetchone()
 
