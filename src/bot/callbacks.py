@@ -5,7 +5,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramBadRequest
 
 from emoji import replace_emoji, is_emoji
-from asyncio import sleep
 
 from config import *
 from utils import *
@@ -16,7 +15,7 @@ rt = Router(name="callbacks")
 ###########################
 #   Главное меню          #
 #   управления паутиной   #
-#   (kb.web_settings())   #
+#   kb.web_settings()     #
 ###########################
 
 class WebRename(StatesGroup):
@@ -290,7 +289,7 @@ async def admin_output(admin: dict, admin_tid: int, post: str, heir_tid: int, ca
     if admin_tid == heir_tid:
         heir = " 👑"
     restrs_count = admin['restrs_count']
-    date_reg = await date_c(admin['date_reg'])
+    date_reg = await parse_date(admin['date_reg'])
 
     await callback.message.edit_text(
         text=(
@@ -777,6 +776,51 @@ async def admin_transfer(callback: CallbackQuery):
     await callback.message.delete()
     await callback.message.answer("📤 Теперь эта паутина <b>не принадлежит</b> Вам!")
 
+#############################################
+#   Жалобы                                  #
+#   kb.report_user() и kb.report_admin()    #
+#############################################
+
+# Отмечает жалобу проверенной
+
+@rt.callback_query(F.data.startswith("check_"))
+async def check(callback: CallbackQuery):
+    report_id = callback.data.split("_")[-1]
+    report = await db.get_report(report_id)
+    sender_tid = report['sender_tid']
+    target_tid = report['target_tid']
+    sender = await db.get_user_by_tid(sender_tid)
+    target = await db.get_user_by_tid(target_tid)
+    web_id = report['web_id']
+    web = await db.get_web(web_id)
+    web_admin_chat_tid = web['admin_chat_tid']
+
+    if callback.message.chat.id != web_admin_chat_tid:
+        admins = await db.get_web_admins(web_id)
+        admins_tid = []
+        for admin in admins:
+            admins_tid = admins_tid.append(admin['admin_tid'])
+        if callback.from_user.id not in admins_tid:
+            return await callback.answer("У Вас недостаточно прав.")
+
+    await bot.edit_message_text(
+        chat_id=web_admin_chat_tid,
+        message_id=report['message_tid_bot_admin'],
+        text=(
+            f"✅ Жалоба на {target['link']} проверена\n"
+            f"🆔 <code>{target_tid}</code>\n"
+            f"🗣 Отправил {sender['link']}\n"
+            f"🛡️ Проверил {await mklink(callback.from_user.full_name, callback.from_user.username)}\n"
+            f"<blockquote>{report['reason']}</blockquote>"
+        )
+    )
+    await bot.edit_message_text(
+        chat_id=report['chat_tid'],
+        message_id=report['message_tid_bot_user'],
+        text="✅ Жалоба проверена"
+    )
+    await callback.answer()
+
 #########################
 #   Остальные коллбэки  #
 #########################
@@ -820,7 +864,7 @@ async def get_web(callback: CallbackQuery):
     # Вывод
     emoji = web['emoji'] or await rndemoji()
     forename = web['forename']
-    date_reg = await date_c(web['date_reg'])
+    date_reg = await parse_date(web['date_reg'])
     web_id = web['web_id']
     descr = web['descr']
     descr = descr if descr else "Описание отсутствует."

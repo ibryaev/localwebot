@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
-from asyncio import sleep
 
 from config import *
 from utils import *
@@ -149,7 +148,7 @@ async def get_web(message: Message):
     forename = web['forename']
     emoji = web['emoji'] or await rndemoji()
     descr = web['descr'] or "Описание отсутствует."
-    date_reg = await date_c(web['date_reg'])
+    date_reg = await parse_date(web['date_reg'])
 
     await msg.edit_text(
         text=(
@@ -365,6 +364,71 @@ async def mk_admin_chat(message: Message):
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     await message.reply("🛡️ Теперь в этот чат будут приходить глобальные репорты.") # Вывод
+
+#
+
+@rt.message(F.text.startswith("жалоба"))
+async def report(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    if not message.reply_to_message:
+        return await message.reply("Жалобу нужно подать в ответ на сообщение.") # Вывод
+
+    sender = message.from_user
+    target = message.reply_to_message.from_user
+
+    await db.mk_user(user=sender)
+    await db.mk_user(user=target)
+
+    sender_tid = sender.id
+    target_tid = target.id
+
+    if sender_tid == target_tid:
+        return
+
+    chat = await db.get_chat(message.chat.id)
+
+    if not chat:
+        return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
+
+    web_id = chat['web_id']
+
+    web = await db.get_web(web_id)
+    if not web['admin_chat_tid']:
+        return await message.reply("У сетки, в которой состоит этот чат, нет админского чата.") # Вывод
+
+    message_user = await message.reply("Подождите, идёт загрузка...")
+    message_admin = await bot.send_message(
+        chat_id=web['admin_chat_tid'],
+        text="Подождите, идёт загрузка..."
+    )
+
+    report = await db.mk_report(web_id, message, message_admin.message_id, message_user.message_id)
+    if not report:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Вывод
+    report_id = report['report_id']
+
+    await message_user.edit_text(
+        text=(
+            f"❗️ Жалоба на {await mklink(target.full_name, target.username)} отправлена\n"
+            f"🆔 <code>{target_tid}</code>\n"
+            f"🗣 Отправил {await mklink(sender.full_name, sender.username)}\n"
+            f"<blockquote>{report['reason']}</blockquote>"
+        ),
+        reply_markup=await kb.report_user(report_id)
+    )
+    await message_admin.edit_text(
+        text=(
+            f"❗️ Жалоба на {await mklink(target.full_name, target.username)}\n"
+            f"🆔 <code>{target_tid}</code>\n"
+            f"🗣 Отправил {await mklink(sender.full_name, sender.username)}\n"
+            f"<blockquote>{report['reason']}</blockquote>"
+        ),
+        reply_markup=await kb.report_admin(report_id)
+    )
 
 ##################################
 #   Команды для личных чатов     #

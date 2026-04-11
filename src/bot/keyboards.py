@@ -18,6 +18,10 @@ async def button_go_back(inline_keyboard: InlineKeyboardBuilder) -> InlineKeyboa
         style="primary"
     ))
 
+####################
+#    Клавиатуры    #
+####################
+
 async def go_back() -> InlineKeyboardMarkup:
     inline_keyboard = InlineKeyboardBuilder()
     await button_go_back(inline_keyboard)
@@ -82,8 +86,8 @@ async def admins(admins: list[dict], owner_tid: int, heir_tid: int) -> InlineKey
             style="danger"
         ))
 
-    web = await db.get_web_tid(owner_tid)
-    owner = await db.get_admin(owner_tid, web['web_id'])
+    web = await db.get_web_by_owner_tid(owner_tid)
+    owner = await db.get_admin_by_tid(owner_tid, web['web_id'])
     if admins == [owner]:
         inline_keyboard.add(InlineKeyboardButton(
             text="🔄 Админов нет",
@@ -135,4 +139,22 @@ async def admin(admin_id: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="👑 Сделать наследником", callback_data=f"heir_{admin_id}"),      # 2
          InlineKeyboardButton(text="📤 Передать права", callback_data=f"transfer_{admin_id}")],      # 2
         [InlineKeyboardButton(text="⬅️ Обратно", callback_data="admins", style="primary")]           # 3
+    ])
+
+async def report_admin(report_id: str) -> InlineKeyboardMarkup:
+    report = await db.get_report(report_id)
+    chat_tid_clear = str(report['chat_tid']).removeprefix("-100")
+    link = f"https://t.me/c/{chat_tid_clear}/{report['message_tid_bot_user']}"
+
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Сообщение", url=link)],                                        # 1
+        [InlineKeyboardButton(text="✅ Отметить", callback_data=f"check_{report_id}")]             # 2
+    ])
+
+async def report_user(report_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔴 Бан", callback_data=f"ban_{report_id}"),                    # 1
+         InlineKeyboardButton(text="🔇 Мут", callback_data=f"mute_{report_id}"),                   # 1
+         InlineKeyboardButton(text="➖ Сообщение", callback_data=f"rmmes_{report_id}")],           # 1
+        [InlineKeyboardButton(text="✅ Отметить", callback_data=f"check_{report_id}")]             # 2
     ])

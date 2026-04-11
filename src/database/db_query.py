@@ -1,6 +1,6 @@
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
-from aiogram.types import User, Chat
+from aiogram.types import User, Chat, Message
 
 from emoji import is_emoji
 from random import choice
@@ -342,7 +342,7 @@ class Database():
             await self.conn.rollback()
             return None
 
-    async def get_chat(self, chat_tid: str) -> dict:
+    async def get_chat(self, chat_tid: int) -> dict:
         '''Получает инфо о чате по его TID'''
         try:
             await self.cur.execute("SELECT * FROM chats WHERE chat_tid = %s", (chat_tid,))
@@ -600,18 +600,29 @@ class Database():
             await self.conn.rollback()
             return False
 
-    ##################################
-    #       Таблица reports          #
-    #                                #
-    #    mk_report()  rm_report()    #
-    ##################################
+    ################################################
+    #              Таблица reports                 #
+    #                                              #
+    #    mk_report()  get_report()  rm_report()    #
+    ################################################
 
-    async def mk_report(self, web_id: str, sender_tid: int, target_tid: int, reason: str = None) -> dict:
+    async def mk_report(self, web_id: str, message_user: Message, message_tid_bot_admin: int, message_tid_bot_user: int) -> dict:
         '''Создает запись жалобы'''
+        report_id = await self.mkid("reports")
+        chat_tid = message_user.chat.id
+        message_tid_user = message_user.message_id
+        sender_tid = message_user.from_user.id
+        target_tid = message_user.reply_to_message.from_user.id
+        reason = message_user.text.split(" ", 1)
+        if len(reason) == 2:
+            reason = reason[-1]
+        else:
+            reason = "Причина не указана."
+
         try:
             await self.cur.execute(
-                "INSERT INTO reports (web_id, sender_tid, target_tid, reason) VALUES (%s, %s, %s, %s) RETURNING *",
-                (web_id, sender_tid, target_tid, reason)
+                "INSERT INTO reports (report_id, web_id, chat_tid, message_tid_user, message_tid_bot_admin, message_tid_bot_user, sender_tid, target_tid, reason) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+                (report_id, web_id, chat_tid, message_tid_user, message_tid_bot_admin, message_tid_bot_user, sender_tid, target_tid, reason)
             )
             return await self.cur.fetchone()
         except Exception as e:
@@ -619,7 +630,15 @@ class Database():
             await self.conn.rollback()
             return False
 
-    async def rm_report(self, report_id: int) -> bool:
+    async def get_report(self, report_id: str) -> dict:
+        try:
+            await self.cur.execute("SELECT * FROM reports WHERE report_id = %s", (report_id,))
+            return await self.cur.fetchone()
+        except Exception as e:
+            print(f"error: database: get_report(): {e}")
+            return False
+
+    async def rm_report(self, report_id: str) -> bool:
         '''Удаляет жалобу'''
         try:
             await self.cur.execute("DELETE FROM reports WHERE report_id = %s", (report_id,))

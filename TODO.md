@@ -13,6 +13,7 @@
 - [x] Finish "send request to my web" button callback   ([b37907b](https://github.com/ibryaev/localwebot/commit/b37907bd8b7d31668279bb77c2cd4488aac6ee58))
 - [x] Add heir system                                   ([a8e026a](https://github.com/ibryaev/localwebot/commit/a8e026a71310f553df13c66dd1c068278f60a63b))
   - [x] Add owner rights autoswitch for the heir when the prev owner is missing ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
+    - [ ] Add heir notify when he gets the web
 - [x] Add admin chat connection to web                  ([fca81ce](https://github.com/ibryaev/localwebot/commit/fca81ce95d6a5ca7c8f96a42b1a7744759e6465f))
 - [ ] Add report system
 - [x] Add description for web                           ([d6e4dcd](https://github.com/ibryaev/localwebot/commit/d6e4dcd1204d113d583afdefdcd6955daa5548fd))
