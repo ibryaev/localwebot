@@ -19,4 +19,5 @@
 - [ ] Add schedulers:
   - [ ] Add scheduler for restrictions (restrs table): bans & mutes
   - [x] Add scheduler for webs, where creator's account got deleted ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
-- [x] Store more profiles info in `users` table in db
+- [x] Store more profiles info in `users` table in db   ([b6eea9a](https://github.com/ibryaev/localwebot/commit/b6eea9a3ec8e9adafdf398fd91c41e38ab278fb4))
+- [ ] Implement ability to add admin in web

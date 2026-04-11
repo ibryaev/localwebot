@@ -10,7 +10,7 @@ async def rndemoji() -> str:
     '''
     return choice(["🌐", "🕸️", "⛓️", "🤝", "🔗", "🧩", "📡"])
 
-async def date_c(date: float) -> str:
+async def parse_date(date: float) -> str:
     '''Получает сырой unix timestamp, возвращает string используя форматирование ``d MMMM, yyyy г.`` (на русском)'''
     return format_date(date, format="d MMMM, yyyy г.", locale="ru")
 
@@ -20,3 +20,6 @@ async def get_chat_owner(chat_tid: int) -> User:
     for admin in admins:
         if admin.status == "creator":
             return admin.user
+
+async def mklink(full_name: str, username: str) -> str:
+    return f"<a href='https://t.me/{username}'>{full_name}</a>" if username else full_name
