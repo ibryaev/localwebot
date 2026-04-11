@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS reports (
     web_id VARCHAR(4) REFERENCES webs(web_id) ON DELETE CASCADE,
     chat_tid BIGINT REFERENCES users(tid) ON DELETE CASCADE,
     message_tid_user BIGINT NOT NULL,
+    message_tid_user_replyto BIGINT NOT NULL,
     message_tid_bot_admin BIGINT NOT NULL,
     message_tid_bot_user BIGINT NOT NULL,
     sender_tid BIGINT REFERENCES users(tid) ON DELETE CASCADE,

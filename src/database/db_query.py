@@ -611,6 +611,7 @@ class Database():
         report_id = await self.mkid("reports")
         chat_tid = message_user.chat.id
         message_tid_user = message_user.message_id
+        message_tid_user_replyto = message_user.reply_to_message.message_id
         sender_tid = message_user.from_user.id
         target_tid = message_user.reply_to_message.from_user.id
         reason = message_user.text.split(" ", 1)
@@ -621,8 +622,8 @@ class Database():
 
         try:
             await self.cur.execute(
-                "INSERT INTO reports (report_id, web_id, chat_tid, message_tid_user, message_tid_bot_admin, message_tid_bot_user, sender_tid, target_tid, reason) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
-                (report_id, web_id, chat_tid, message_tid_user, message_tid_bot_admin, message_tid_bot_user, sender_tid, target_tid, reason)
+                "INSERT INTO reports (report_id, web_id, chat_tid, message_tid_user, message_tid_user_replyto, message_tid_bot_admin, message_tid_bot_user, sender_tid, target_tid, reason) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+                (report_id, web_id, chat_tid, message_tid_user, message_tid_user_replyto, message_tid_bot_admin, message_tid_bot_user, sender_tid, target_tid, reason)
             )
             return await self.cur.fetchone()
         except Exception as e:

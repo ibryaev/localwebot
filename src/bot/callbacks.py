@@ -803,6 +803,14 @@ async def check(callback: CallbackQuery):
         if callback.from_user.id not in admins_tid:
             return await callback.answer("У Вас недостаточно прав.")
 
+    result = await db.rm_report(report_id)
+    if not result:
+        return await callback.answer(
+            # Вывод
+            text="Непредвиденная ошибка. Попробуйте позже.",
+            show_alert=True
+        )
+
     await bot.edit_message_text(
         chat_id=web_admin_chat_tid,
         message_id=report['message_tid_bot_admin'],
@@ -820,6 +828,21 @@ async def check(callback: CallbackQuery):
         text="✅ Жалоба проверена"
     )
     await callback.answer()
+
+#
+
+@rt.callback_query(F.data.startswith("rmmes_"))
+async def rmmes(callback: CallbackQuery):
+    report_id = callback.data.split("_")[-1]
+    report = await db.get_report(report_id)
+    try:
+        await bot.delete_message(
+            chat_id=report['chat_tid'],
+            message_id=report['message_tid_user_replyto']
+        )
+    except Exception:
+        await callback.answer("Уже и так")
+    await callback.answer("✅")
 
 #########################
 #   Остальные коллбэки  #
