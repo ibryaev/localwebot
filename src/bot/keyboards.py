@@ -22,6 +22,15 @@ async def button_go_back(inline_keyboard: InlineKeyboardBuilder) -> InlineKeyboa
 #    Клавиатуры    #
 ####################
 
+prefixes = {
+    "owner": "👑",
+    "helper": "3️⃣",
+    "admin": "2️⃣",
+    "moder": "1️⃣"
+}
+
+ # # # # # # # # # #
+
 async def go_back() -> InlineKeyboardMarkup:
     inline_keyboard = InlineKeyboardBuilder()
     await button_go_back(inline_keyboard)
@@ -68,7 +77,8 @@ async def about(web_id: str, is_admin: bool = False) -> InlineKeyboardMarkup:
 
     inline_keyboard.add(InlineKeyboardButton(
         text="ℹ️ О паутине",
-        callback_data=f"about_{web_id}"
+        callback_data=f"about_{web_id}",
+        style="primary"
     ))
     if is_admin:
         await button_go_back(inline_keyboard)
@@ -78,18 +88,9 @@ async def about(web_id: str, is_admin: bool = False) -> InlineKeyboardMarkup:
 async def admins(admins: list[dict], owner_tid: int, heir_tid: int) -> InlineKeyboardMarkup:
     inline_keyboard = InlineKeyboardBuilder()
 
-    if not admins:
-        # Технически это невозможное условие, потому что у любой паутины всегда есть админ - её владелец
-        inline_keyboard.add(InlineKeyboardButton(
-            text="🔄 Админов нет",
-            callback_data="admins",
-            style="danger"
-        ))
-
-    web = await db.get_web_by_owner_tid(owner_tid)
-    owner = await db.get_admin_by_tid(owner_tid, web['web_id'])
-    if admins == [owner]:
-        inline_keyboard.add(InlineKeyboardButton(
+    if not admins or (len(admins) == 1 and admins[0]['admin_tid'] == owner_tid):
+        # Если админов нет (среди админов числится только владелец паутины)
+        inline_keyboard.row(InlineKeyboardButton(
             text="🔄 Админов нет",
             callback_data="admins",
             style="danger"
@@ -97,39 +98,32 @@ async def admins(admins: list[dict], owner_tid: int, heir_tid: int) -> InlineKey
 
     else:
         for admin in admins:
-            admin_t = await bot.get_chat(admin['admin_tid'])
+            admin_tid = admin['admin_tid']
+            
+            admin_db = await db.get_user_by_tid(admin_tid)
+            admin_name = admin_db['full_name'] if admin_db else str(admin_tid) # Если админа нет в бд таблице users (по сути технически невозможно), то просто показываю его TID
+            
             post = admin['post']
-            suffix = ""
-            if post == "owner":
-                prefix = "👑"
-            if post == "helper":
-                prefix = "3️⃣"
-            if post == "admin":
-                prefix = "2️⃣"
-            if post == "moder":
-                prefix = "1️⃣"
-
-            if heir_tid == admin_t.id:
-                suffix = " 👑"
+            prefix = prefixes[post]
+            suffix = " 👑" if admin_tid == heir_tid else ""
 
             inline_keyboard.add(InlineKeyboardButton(
-                text=f"{prefix} {admin_t.full_name}{suffix}",
+                text=f"{prefix} {admin_name}{suffix}",
                 callback_data=f"admin_{admin['admin_id']}"
             ))
+        
+        # Сначала выравниваем только кнопки админов по 2 в ряд
+        inline_keyboard.adjust(2)
 
-    inline_keyboard.add(InlineKeyboardButton(
-        text="👑 Убрать наследника",
-        callback_data="rm_heir",
-        style="danger"
-    ))
-    inline_keyboard.add(InlineKeyboardButton(
-        text="🗯 Убрать адм. чат",
-        callback_data="rm_admin_chat",
-        style="danger"
-    ))
+    inline_keyboard.row( # Только что выучил новую функцию для клавиатур в aiogram - row()
+        InlineKeyboardButton(text="👑 Убрать наследника", callback_data="rm_heir", style="danger"),
+        InlineKeyboardButton(text="🗯 Убрать адм. чат", callback_data="rm_admin_chat", style="danger"),
+        width=2
+    )
+
     await button_go_back(inline_keyboard)
 
-    return inline_keyboard.adjust(2).as_markup()
+    return inline_keyboard.as_markup()
 
 async def admin(admin_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -148,7 +142,7 @@ async def report_admin(report_id: str) -> InlineKeyboardMarkup:
 
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Сообщение", url=link)],                                        # 1
-        [InlineKeyboardButton(text="✅ Отметить", callback_data=f"check_{report_id}")]             # 2
+        [InlineKeyboardButton(text="✅ Отметить", callback_data=f"check_{report_id}", style="success")]             # 2
     ])
 
 async def report_user(report_id: str) -> InlineKeyboardMarkup:
@@ -156,5 +150,5 @@ async def report_user(report_id: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🔴 Бан", callback_data=f"ban_{report_id}"),                    # 1
          InlineKeyboardButton(text="🔇 Мут", callback_data=f"mute_{report_id}"),                   # 1
          InlineKeyboardButton(text="➖ Сообщение", callback_data=f"rmmes_{report_id}")],           # 1
-        [InlineKeyboardButton(text="✅ Отметить", callback_data=f"check_{report_id}")]             # 2
+        [InlineKeyboardButton(text="✅ Отметить", callback_data=f"check_{report_id}", style="success")]             # 2
     ])
