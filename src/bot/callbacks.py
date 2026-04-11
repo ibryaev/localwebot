@@ -99,7 +99,7 @@ async def rename_msg_emoji(message: Message, state: FSMContext):
 
     user_tid = message.from_user.id
     forename = data['forename']
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
@@ -128,7 +128,7 @@ async def rename_msg_emoji(message: Message, state: FSMContext):
 @rt.callback_query(F.data == "about")
 async def about(callback: CallbackQuery, state: FSMContext):
     user_tid = callback.from_user.id
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         # Вывод
@@ -152,7 +152,7 @@ async def about_msg_description(message: Message, state: FSMContext):
     await state.clear()
 
     user_tid = message.from_user.id
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
@@ -178,7 +178,7 @@ async def about_msg_description(message: Message, state: FSMContext):
 @rt.callback_query(F.data == "remove")
 async def remove(callback: CallbackQuery):
     user_tid = callback.from_user.id
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         # Вывод
@@ -216,7 +216,7 @@ async def remove(callback: CallbackQuery):
 @rt.callback_query(F.data == "transfer")
 async def transfer(callback: CallbackQuery, state: FSMContext):
     user_tid = callback.from_user.id
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         # Вывод
@@ -255,7 +255,7 @@ async def transfer_msg_owner_tid(message: Message, state: FSMContext):
     if new_owner_tid is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
 
-    is_new_owner_admin = await db.get_admin(new_owner_tid, web_id)
+    is_new_owner_admin = await db.get_admin_by_tid(new_owner_tid, web_id)
 
     if is_new_owner_admin is None:
         return await message.answer("Новый владелец паутины должен обладать в ней хоть какой-нибудь должностью.") # Вывод
@@ -300,7 +300,7 @@ async def admin_output(admin: dict, admin_tid: int, post: str, heir_tid: int, ca
 @rt.callback_query(F.data == "rm_admin_chat")
 async def rm_admin_chat(callback: CallbackQuery):
     user_tid = callback.from_user.id
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         # Вывод
@@ -345,7 +345,7 @@ async def rm_admin_chat(callback: CallbackQuery):
 @rt.callback_query(F.data == "rm_heir")
 async def rm_heir(callback: CallbackQuery):
     user_tid = callback.from_user.id
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         # Вывод
@@ -392,7 +392,7 @@ async def rm_heir(callback: CallbackQuery):
 @rt.callback_query(F.data == "admins")
 async def admins(callback: CallbackQuery):
     user_tid = callback.from_user.id
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         # Вывод
@@ -422,7 +422,7 @@ async def admins(callback: CallbackQuery):
 @rt.callback_query(F.data.startswith("admin_"))
 async def admin(callback: CallbackQuery):
     user_tid = callback.from_user.id
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         # Вывод
@@ -430,7 +430,7 @@ async def admin(callback: CallbackQuery):
         return await callback.answer()
 
     admin_id = callback.data.split("_")[-1]
-    admin = await db.get_admin_id(admin_id)
+    admin = await db.get_admin(admin_id)
 
     if admin is None:
         # Вывод
@@ -454,10 +454,10 @@ async def admin_up(callback: CallbackQuery):
     user_tid = callback.from_user.id
     admin_id = callback.data.split("_")[-1]
 
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
     web_id = web['web_id']
-    admin = await db.get_admin_id(admin_id)
-    user_admin = await db.get_admin(user_tid, web_id)
+    admin = await db.get_admin(admin_id)
+    user_admin = await db.get_admin_by_tid(user_tid, web_id)
 
     if web is None:
         # Вывод
@@ -529,10 +529,10 @@ async def admin_down(callback: CallbackQuery):
     user_tid = callback.from_user.id
     admin_id = callback.data.split("_")[-1]
 
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
     web_id = web['web_id']
-    admin = await db.get_admin_id(admin_id)
-    user_admin = await db.get_admin(user_tid, web_id)
+    admin = await db.get_admin(admin_id)
+    user_admin = await db.get_admin_by_tid(user_tid, web_id)
 
     if web is None:
         # Вывод
@@ -593,10 +593,10 @@ async def admin_fire(callback: CallbackQuery):
     user_tid = callback.from_user.id
     admin_id = callback.data.split("_")[-1]
 
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
     web_id = web['web_id']
-    admin = await db.get_admin_id(admin_id)
-    user_admin = await db.get_admin(user_tid, web_id)
+    admin = await db.get_admin(admin_id)
+    user_admin = await db.get_admin_by_tid(user_tid, web_id)
 
     if web is None:
         # Вывод
@@ -669,10 +669,10 @@ async def admin_heir(callback: CallbackQuery):
     user_tid = callback.from_user.id
     admin_id = callback.data.split("_")[-1]
 
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
     web_id = web['web_id']
-    admin = await db.get_admin_id(admin_id)
-    user_admin = await db.get_admin(user_tid, web_id)
+    admin = await db.get_admin(admin_id)
+    user_admin = await db.get_admin_by_tid(user_tid, web_id)
 
     if web is None:
         # Вывод
@@ -721,10 +721,10 @@ async def admin_transfer(callback: CallbackQuery):
     user_tid = callback.from_user.id
     admin_id = callback.data.split("_")[-1]
 
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
     web_id = web['web_id']
-    admin = await db.get_admin_id(admin_id)
-    user_admin = await db.get_admin(user_tid, web_id)
+    admin = await db.get_admin(admin_id)
+    user_admin = await db.get_admin_by_tid(user_tid, web_id)
 
     if web is None:
         # Вывод
@@ -758,8 +758,7 @@ async def admin_transfer(callback: CallbackQuery):
             show_alert=True
         )
 
-    result = await db.upd_web_heir(web_id, None)
-    result = await db.upd_web_owner(web_id, user_tid, admin_tid)
+    result = await db.upd_web_owner(web_id, admin_tid, user_tid)
 
     if not result:
         return await callback.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
@@ -780,7 +779,7 @@ async def get_web(callback: CallbackQuery):
     user_tid = user_t.id
     await db.mk_user(user_tid, user_t.username)
 
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
 
     if web is None:
         await callback.message.edit_text("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
@@ -847,7 +846,7 @@ async def accept_invite(callback: CallbackQuery):
         await callback.message.edit_text("Предложение устарело.") # Вывод
         return await callback.answer()
 
-    web = await db.get_web_tid(user_tid)
+    web = await db.get_web_by_owner_tid(user_tid)
     web_id = web['web_id']
     chat = await db.mk_chat(chat_tid, web_id, chat_owner_tid)
 
