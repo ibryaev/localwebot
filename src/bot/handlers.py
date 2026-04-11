@@ -124,7 +124,7 @@ async def get_web(message: Message):
 
     msg = await message.answer("Подождите, идёт загрузка...")
 
-    # Выводим список чатов
+    # Формируем список чатов
     chats_tid = web['chats_tid']
     chats_tid_str = ""
     if not chats_tid:
@@ -299,7 +299,7 @@ async def get_chat(message: Message):
     web_id = chat['web_id']
     web = await db.get_web(web_id)
     
-    if chat is None:
+    if web is None:
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     web_emoji = web['emoji'] or await rndemoji()
@@ -368,6 +368,9 @@ async def mk_admin_chat(message: Message):
 #
 
 @rt.message(F.text.startswith("жалоба"))
+@rt.message(F.text.startswith(".жалоба")) # Для тех, кто привык к Ирис боту
+@rt.message(F.text.startswith("репорт"))  # Для тех, кто привык к Ирис боту
+@rt.message(F.text.startswith(".репорт")) # Для тех, кто привык к Ирис боту
 async def report(message: Message):
     if message.chat.type not in ("group", "supergroup"):
         return
@@ -389,12 +392,14 @@ async def report(message: Message):
 
     chat = await db.get_chat(message.chat.id)
 
-    if not chat:
+    if chat is None:
         return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
 
     web_id = chat['web_id']
 
     web = await db.get_web(web_id)
+    if web is None:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     if not web['admin_chat_tid']:
         return await message.reply("У сетки, в которой состоит этот чат, нет админского чата.") # Вывод
 
@@ -428,6 +433,57 @@ async def report(message: Message):
             f"<blockquote>{report['reason']}</blockquote>"
         ),
         reply_markup=await kb.report_admin(report_id)
+    )
+
+# 
+@rt.message(F.text.startswith("чаты"))
+async def chats_tid(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    await db.mk_user(user=message.from_user)
+    await db.mk_user(chat=message.chat)
+
+    chat = await db.get_chat(message.chat.id)
+
+    if chat is None:
+        return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывод
+
+    web_id = chat['web_id']
+    web = await db.get_web(web_id)
+    
+    if web is None:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    emoji = web['emoji'] or await rndemoji()
+    forename = web['forename']
+
+    msg = await message.answer("Подождите, идёт загрузка...")
+
+    # Формируем список чатов
+    chats_tid = web['chats_tid']
+    chats_tid_str = ""
+    if not chats_tid:
+        chats_tid_str = "<b>В этой паутине нет чатов.</b>"
+    else:
+        seq = 1
+        for chat_tid in chats_tid:
+            chat = await db.get_user_by_tid(chat_tid)
+            if chat is None:
+                chat_link = chat_tid
+            else:
+                chat_link = chat['link']
+            chats_tid_str += f"{seq}. <b>{chat_link}</b>"
+            if web['admin_chat_tid'] == chat_tid:
+                chats_tid_str += " <i>(адм)</i>"
+            chats_tid_str += "\n"
+            seq += 1
+
+    await msg.edit_text(
+        text=(
+            f"{emoji} Чаты сетки <b>{forename}</b>\n\n"
+            f"{chats_tid_str}"
+        )
     )
 
 ##################################

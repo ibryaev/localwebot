@@ -18,7 +18,9 @@
 - [ ] Add report system
 - [x] Add description for web                           ([d6e4dcd](https://github.com/ibryaev/localwebot/commit/d6e4dcd1204d113d583afdefdcd6955daa5548fd))
 - [ ] Add schedulers:
-  - [ ] Add scheduler for restrictions (restrs table): bans & mutes
+  - [ ] Add scheduler for restrictions (`restrs` table): bans & mutes
   - [x] Add scheduler for webs, where creator's account got deleted ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
 - [x] Store more profiles info in `users` table in db   ([b6eea9a](https://github.com/ibryaev/localwebot/commit/b6eea9a3ec8e9adafdf398fd91c41e38ab278fb4))
 - [ ] Implement ability to add admin in web
+- [ ] Implement ban & mute
+- [ ] Add ability to view web's chats list from chat from this web
