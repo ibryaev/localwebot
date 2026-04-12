@@ -51,6 +51,12 @@ async def main():
                                     f"<b>Теперь владельцем паутины становится её наследник - {heir['link']}.</b>"
                                 )
                             )
+                            await bot.send_message(
+                                chat_id=heir['tid'],
+                                text=(
+                                    f"Аккаунт владельца паутины <b>{forename}</b> не найден. "
+                                    f"<b>Теперь Вы, как наследник, её полноправный владелец.</b>"
+                                )
                         except Exception:
                             pass
                 else:
