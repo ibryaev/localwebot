@@ -30,3 +30,25 @@ db = Database()
 
 BOT_USERNAME = "localwebot"
 BOT_FULL_NAME = "Setka (Localweb) — Бот для создания сеток чатов"
+
+admin_type_str = {
+    # Преобразует тех. название должности админа в пользовательское
+    "owner": "Владелец",
+    "helper": "Хелпер",
+    "admin": "Админ",
+    "moder": "Модер"
+}
+admin_type_intstr = {
+    # Преобразует цифру 1-4 в должность админа (по иерархии)
+    4: "owner",
+    3: "helper",
+    2: "admin",
+    1: "moder"
+}
+admin_type_strint = {
+    # Преобразует должность админа в цифру 1-4 (по иерархии)
+    "owner": 4,
+    "helper": 3,
+    "admin": 2,
+    "moder": 1
+}

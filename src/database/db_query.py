@@ -445,6 +445,22 @@ class Database():
             print(f"error: database: get_web_admins(): {e}")
             return []
 
+    async def get_web_admins_tid(self, web_id: str) -> list[dict]:
+        '''Получает список всех TID админов из данной паутины'''
+        try:
+            await self.cur.execute("SELECT * FROM admins WHERE web_id = %s", (web_id,))
+            admins = await self.cur.fetchall()
+            if not admins:
+                return []
+
+            admins_tid = []
+            for admin in admins:
+                admins_tid = admins_tid.append(admin['admin_tid'])
+            return admins_tid
+        except Exception as e:
+            print(f"error: database: get_web_admins(): {e}")
+            return []
+
     async def upd_admin_post(self, admin_tid: int, web_id: str, post: str) -> bool:
         '''Обновляет должность админа в конкретной паутине'''
         try:

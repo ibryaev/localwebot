@@ -242,11 +242,14 @@ async def add_chat(message: Message):
                 chat_owner_web_forename = chat_owner_web['forename']
                 
                 chat = await db.mk_chat(chat_tid, chat_owner_web['web_id'], chat_owner_tid)
-
                 if chat is None:
                     return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
                 return await message.reply(f"✅ Чат <b>{chat_ttitle}</b> успешно добавлен в паутину <b>{chat_owner_web_forename}</b>!") # Вывод
+
+# # # # # # # # # # # # # # # # #
+#   Управление паутиной чата    #
+# # # # # # # # # # # # # # # # #
 
 # Удаление чата из паутины (-паутина)
 # Убирает привязку чата к текущей паутине в БД.
@@ -389,6 +392,258 @@ async def mk_admin_chat(message: Message):
 
     await message.reply("🛡️ Теперь в этот чат будут приходить глобальные репорты.") # Вывод
 
+# # # # # # # # # # # # # # # # #
+#   Управление админами         #
+#   через текстовые команды     #
+# # # # # # # # # # # # # # # # #
+
+# Повышение админа через текстовую команду
+# Если человек не был админом - назначает модератором.
+
+@rt.message(F.text.casefold() == "повысить")
+async def up(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    if not message.reply_to_message:
+        return await message.reply("Повышение нужно писать в ответ на сообщение.") # Вывод
+
+    sender_t = message.from_user
+    target_t = message.reply_to_message.from_user
+
+    await db.mk_user(user=sender_t)
+    await db.mk_user(user=target_t)
+    await db.mk_user(chat=message.chat)
+
+    sender_tid = sender_t.id
+    target_tid = target_t.id
+
+    if sender_tid == target_tid:
+        return
+
+    # Получаю паутину этого чата
+    chat = await db.get_chat(message.chat.id)
+    if chat is None:
+        return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
+    
+    web_id = chat['web_id']
+
+    # Получаю данные админов (отправителя и цели)
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+
+    # Проверка прав
+    if not sender_admin or admin_type_strint[sender_admin['post']] < 3:
+        # Только хелперы и владелец могут повышать
+        post_name = admin_type_str[sender_admin['post']] if sender_admin else "Пользователь"
+        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{admin_type_str['helper']}</b>)") # Вывод
+
+    sender_post = sender_admin['post']
+
+    # Если target не админ, то делаю его модером
+    if not target_admin:
+        result = await db.mk_admin(target_tid, web_id, "moder")
+        if not result:
+            return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        
+        target = await db.get_user_by_tid(target_tid)
+        return await message.reply(f"🛡 {target['link']} назначен <b>{admin_type_str["moder"].lower()}ом</b> паутины!") # Вывод
+
+    # Повышаю ранг
+    target_post = target_admin['post']
+    
+    if target_post == "owner":
+        return await message.reply("Нельзя менять права владельцу паутины.") # Вывод
+
+    elif target_post == "helper":
+        if sender_post != "owner":
+            return await message.reply("Вы не можете менять права админу, который выше или равен Вам.") # Вывод
+        else:
+            return await message.reply(
+                text=(
+                    # Вывод
+                    "В одной паутине может быть только один владелец.\n"
+                    "Если Вы хотите передать этому человеку права на паутину, то сделайте это через админ-панель."
+                )
+            )
+
+    elif target_post == "admin":
+        if sender_post != "owner":
+            return await message.reply("Назначать новых хелперов может только владелец паутины.") # Вывод
+
+    new_post = admin_type_intstr[admin_type_strint[target_post] + 1]
+    result = await db.upd_admin_post(target_tid, web_id, new_post)
+    if not result:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Вывод
+    target = await db.get_user_by_tid(target_tid)
+    return await message.reply(f"⬆️ {target['link']} повышен до <b>{admin_type_str[new_post].lower()}а</b>!") # Вывод
+
+# Понижание админа через текстовую команду
+# Если должность модер - полностью снимает.
+
+@rt.message(F.text.casefold() == "понизить")
+async def down(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    if not message.reply_to_message:
+        return await message.reply("Понижение нужно писать в ответ на сообщение.") # Вывод
+
+    sender_t = message.from_user
+    target_t = message.reply_to_message.from_user
+
+    await db.mk_user(user=sender_t)
+    await db.mk_user(user=target_t)
+    await db.mk_user(chat=message.chat)
+
+    sender_tid = sender_t.id
+    target_tid = target_t.id
+
+    if sender_tid == target_tid:
+        return
+
+    # Получаю паутину этого чата
+    chat = await db.get_chat(message.chat.id)
+    if chat is None:
+        return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
+    
+    web_id = chat['web_id']
+
+    # Получаю данные админов (отправителя и цели)
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+
+    # Проверка прав
+    if not sender_admin or admin_type_strint[sender_admin['post']] < 3:
+        # Только хелперы и владелец могут повышать
+        post_name = admin_type_str[sender_admin['post']] if sender_admin else "Пользователь"
+        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{admin_type_str['helper']}</b>)") # Вывод
+
+    sender_post = sender_admin['post']
+
+    # Если target не админ, то делаю его модером
+    if not target_admin:
+        return await message.reply(f"Этот пользователь и так не является админом.") # Вывод
+
+    # Повышаю ранг
+    target_post = target_admin['post']
+    
+    if target_post == "owner":
+        return await message.reply("Нельзя менять права владельцу паутины.") # Вывод
+
+    elif target_post == "helper":
+        if sender_post != "owner":
+            return await message.reply("Понижать хелперов может только владелец паутины.") # Вывод
+        else:
+            return await message.reply(
+                text=(
+                    # Вывод
+                    "В одной паутине может быть только один владелец.\n"
+                    "Если Вы хотите передать этому человеку права на паутину, то сделайте это через админ-панель."
+                )
+            )
+
+    elif target_post == "moder":
+        result = await db.rm_admin(target_tid, web_id)
+        if not result:
+            return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+        # Вывод
+        target = await db.get_user_by_tid(target_tid)
+        return await message.reply(f"🔥 {target['link']} снят с должности!")
+
+    new_post = admin_type_intstr[admin_type_strint[target_post] - 1]
+    result = await db.upd_admin_post(target_tid, web_id, new_post)
+    if not result:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Вывод
+    target = await db.get_user_by_tid(target_tid)
+    return await message.reply(f"⬇️ {target['link']} понижен до <b>{admin_type_str[new_post].lower()}а</b>!") # Вывод
+
+# Полное снятие админа с должности через текстовую команду
+# Прописать может только хелпер или владелец.
+
+@rt.message(F.text.casefold() == "снять")
+async def fire(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    if not message.reply_to_message:
+        return await message.reply("Снятие нужно писать в ответ на сообщение.") # Вывод
+
+    sender_t = message.from_user
+    target_t = message.reply_to_message.from_user
+
+    await db.mk_user(user=sender_t)
+    await db.mk_user(user=target_t)
+    await db.mk_user(chat=message.chat)
+
+    sender_tid = sender_t.id
+    target_tid = target_t.id
+
+    if sender_tid == target_tid:
+        return
+
+    # Получаю паутину этого чата
+    chat = await db.get_chat(message.chat.id)
+    if chat is None:
+        return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
+    
+    web_id = chat['web_id']
+    web = await db.get_web(web_id)
+
+    # Получаю данные админов (отправителя и цели)
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+
+    # Проверка прав отправителя
+    if not sender_admin or admin_type_strint[sender_admin['post']] < 3:
+        # Снимать могут только хелперы и владелец
+        post_name = admin_type_str[sender_admin['post']] if sender_admin else "Пользователь"
+        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{admin_type_str['helper']}</b>)") # Вывод
+
+    sender_post = sender_admin['post']
+
+    # Проверка цели
+    if not target_admin:
+        return await message.reply(f"Этот пользователь и так не является админом.") # Вывод
+
+    target_post = target_admin['post']
+    heir_tid = web['heir_tid']
+
+    # Иерархические проверки
+    if target_post == "owner":
+        return await message.reply("У паутины обязан быть владелец.") # Вывод
+
+    if target_post == "helper" and sender_post != "owner":
+        return await message.reply("Снимать хелперов может только владелец паутины.") # Вывод
+
+    # Логика снятия наследника
+    heir_warning = ""
+    if heir_tid == target_tid:
+        if sender_post != "owner":
+            return await message.reply("Снять наследника может только владелец паутины.") # Вывод
+        
+        # Если снимаем наследника, обнуляем поле в webs
+        await db.upd_web_heir(web_id, None)
+        heir_warning = "\n⚠️ <i>Этот админ являлся наследником. Не забудьте назначить нового.</i>"
+
+    # Непосредственное удаление из таблицы admins
+    result = await db.rm_admin(target_tid, web_id)
+    if not result:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Вывод
+    target = await db.get_user_by_tid(target_tid)
+    return await message.reply(f"🔥 {target['link']} снят с должности!{heir_warning}")
+
+# # # # # # # # #
+#   Остальное   #
+# # # # # # # # #
+
 #
 
 @rt.message(F.text.startswith("жалоба"))
@@ -460,6 +715,7 @@ async def report(message: Message):
     )
 
 # 
+
 @rt.message(F.text.startswith("чаты"))
 async def chats_tid(message: Message):
     if message.chat.type not in ("group", "supergroup"):

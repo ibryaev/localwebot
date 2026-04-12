@@ -7,20 +7,23 @@
 - [x] Add settings for web in "my web"-menu             ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
   - [x] Finish panel with admins list                   ([48978ef](https://github.com/ibryaev/localwebot/commit/48978ef463c0bbad286b7743106d86615b45c7bb))
     - [ ] Add ability to view admins list from admin chat
-    - [ ] Add abilty to manage admins list by text commands (in groups)
+    - [x] Add abilty to manage admins list by text commands (in groups)
 - [x] Trigger when bot added in chat                    ([dc6e6a0](https://github.com/ibryaev/localwebot/commit/dc6e6a01ebb56c94711c8fae08cda0d3269ceac0))
 - [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
 - [x] Finish "send request to my web" button callback   ([b37907b](https://github.com/ibryaev/localwebot/commit/b37907bd8b7d31668279bb77c2cd4488aac6ee58))
 - [x] Add heir system                                   ([a8e026a](https://github.com/ibryaev/localwebot/commit/a8e026a71310f553df13c66dd1c068278f60a63b))
   - [x] Add owner rights autoswitch for the heir when the prev owner is missing ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
-    - [ ] Add heir notify when he gets the web
+    - [x] Add heir notify when he gets the web          ([4e01a59](https://github.com/ibryaev/localwebot/commit/4e01a59809b66c29a54254e89972e60c5b095b31))
 - [x] Add admin chat connection to web                  ([fca81ce](https://github.com/ibryaev/localwebot/commit/fca81ce95d6a5ca7c8f96a42b1a7744759e6465f))
-- [ ] Add report system
+- [ ] Add report system <u>**(WIP)**</u>
+  - [ ] Add special mark when reporting admin
+  - [ ] Restrict to report the bot
 - [x] Add description for web                           ([d6e4dcd](https://github.com/ibryaev/localwebot/commit/d6e4dcd1204d113d583afdefdcd6955daa5548fd))
 - [ ] Add schedulers:
   - [ ] Add scheduler for restrictions (`restrs` table): bans & mutes
   - [x] Add scheduler for webs, where creator's account got deleted ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
 - [x] Store more profiles info in `users` table in db   ([b6eea9a](https://github.com/ibryaev/localwebot/commit/b6eea9a3ec8e9adafdf398fd91c41e38ab278fb4))
-- [ ] Implement ability to add admin in web
-- [ ] Implement ban & mute
+- [ ] Implement ability to add admin in web <u>**(WIP)**</u>
+- [ ] Implement ban & mute <u>**(WIP)**</u>
 - [x] Add ability to view web's chats list from chat from this web ([b8f8089](https://github.com/ibryaev/localwebot/commit/b8f8089c4fd785c5ef52b07b57d2b0950b3891cf))
+- [ ] Add function for chats list formatting (Формируем список чатов)
