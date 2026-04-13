@@ -2,6 +2,7 @@ from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 from aiogram.types import User, Chat, Message
 
+from datetime import datetime
 from emoji import is_emoji
 from random import choice
 from string import ascii_letters, digits
@@ -88,7 +89,7 @@ class Database():
             await self.conn.rollback()
             return None
 
-    async def get_user_by_tid(self, tid: int) -> str:
+    async def get_user_by_tid(self, tid: int) -> dict:
         '''Получает пользователя по TID'''
         try:
             await self.cur.execute("SELECT * FROM users WHERE tid = %s", (tid,))
@@ -525,7 +526,7 @@ class Database():
 
             await self.cur.execute(
                 "INSERT INTO restrs (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
-                (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until)
+                (restr_id, web_id, user_tid, restr, admin_tid, reason, datetime.fromtimestamp(date_until))
             )
             restr = await self.cur.fetchone()
             await self.conn.commit()
@@ -544,7 +545,7 @@ class Database():
             print(f"error: database: get_restr(): {e}")
             return False
 
-    async def get_restrs_by_user_tid(self, user_tid: int) -> dict:
+    async def get_restrs_by_user_tid(self, user_tid: int) -> list[dict]:
         '''Получает все наказания данного человека'''
         try:
             await self.cur.execute("SELECT * FROM restrs WHERE user_tid = %s", (user_tid,))
@@ -553,7 +554,7 @@ class Database():
             print(f"error: database: get_restrs_by_user_tid(): {e}")
             return False
 
-    async def get_restrs_by_user_tid_in_web(self, user_tid: int, web_id: str) -> dict:
+    async def get_restrs_by_user_tid_in_web(self, user_tid: int, web_id: str) -> list[dict]:
         '''Получает все наказания данного человека в конкретной паутине'''
         try:
             await self.cur.execute(
@@ -565,8 +566,8 @@ class Database():
             print(f"error: database: get_restrs_by_user_tid_in_web(): {e}")
             return False
 
-    async def get_restrs_by_admin_tid_in_web(self, admin_tid: int, web_id: str) -> dict:
-        '''Получает все наказания данного человека в конкретной паутине'''
+    async def get_restrs_by_admin_tid_in_web(self, admin_tid: int, web_id: str) -> list[dict]:
+        '''Получает все наказания выданные данным админом в конкретной паутине'''
         try:
             await self.cur.execute(
                 "SELECT * FROM restrs WHERE admin_tid = %s AND web_id = %s",
@@ -596,7 +597,7 @@ class Database():
         try:
             await self.cur.execute(
                 "UPDATE restrs SET date_until = %s WHERE restr_id = %s",
-                (date_until, restr_id)
+                (datetime.fromtimestamp(date_until), restr_id)
             )
             await self.conn.commit()
             return True
