@@ -1,7 +1,8 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, ChatPermissions
 from aiogram.fsm.context import FSMContext
+from datetime import datetime
 
 from config import *
 from utils import *
@@ -244,6 +245,7 @@ async def add_chat(message: Message):
                 chat = await db.mk_chat(chat_tid, chat_owner_web['web_id'], chat_owner_tid)
                 if chat is None:
                     return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+                    
 
                 return await message.reply(f"✅ Чат <b>{chat_ttitle}</b> успешно добавлен в паутину <b>{chat_owner_web_forename}</b>!") # Вывод
 
@@ -276,7 +278,7 @@ async def rm_chat(message: Message):
     chat = await db.get_chat(chat_tid)
 
     if chat is None:
-        return await message.reply("Этот чат и так не состоит ни в какой паутине.") # Вывод
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     web_id = chat['web_id']
     web = await db.get_web(web_id)
@@ -321,7 +323,7 @@ async def get_chat(message: Message):
     chat = await db.get_chat(chat_tid)
 
     if chat is None:
-        return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывод
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     web_id = chat['web_id']
     web = await db.get_web(web_id)
@@ -424,7 +426,7 @@ async def up(message: Message):
     # Получаю паутину этого чата
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
     
     web_id = chat['web_id']
 
@@ -447,7 +449,7 @@ async def up(message: Message):
             return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
         
         target = await db.get_user_by_tid(target_tid)
-        return await message.reply(f"🛡 {target['link']} назначен <b>{admin_type_str["moder"].lower()}ом</b> паутины!") # Вывод
+        return await message.reply(f"🛡 {target['link']} назначен <b>{admin_type_str['moder'].lower()}ом</b> паутины!") # Вывод
 
     # Повышаю ранг
     target_post = target_admin['post']
@@ -507,7 +509,7 @@ async def down(message: Message):
     # Получаю паутину этого чата
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
     
     web_id = chat['web_id']
 
@@ -590,7 +592,7 @@ async def fire(message: Message):
     # Получаю паутину этого чата
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
     
     web_id = chat['web_id']
     web = await db.get_web(web_id)
@@ -640,16 +642,248 @@ async def fire(message: Message):
     target = await db.get_user_by_tid(target_tid)
     return await message.reply(f"🔥 {target['link']} снят с должности!{heir_warning}")
 
+# # # # # # # # # # # # #
+#   Админские команды   #
+#   Гмут, гбан, гкик    #
+# # # # # # # # # # # # #
+
+# Гмут - Команда для глобального мута человека
+
+@rt.message(F.text.casefold().startswith("гмут"))
+@rt.message(F.text.casefold().startswith("гломут")) # Для тех, кто привык к Ирис боту
+async def gmute(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    if not message.reply_to_message:
+        # TODO Сделать возможность обращения по @юзернейму
+        # TODO Заблокать взаимодействие с самим ботом
+        return await message.reply("Глобальный мут нужно писать в ответ на сообщение.") # Вывод
+
+    chat = await db.get_chat(message.chat.id)
+    if chat is None:
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+
+    web_id = chat['web_id']
+    web = await db.get_web(web_id)
+    if web is None:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    sender_t = message.from_user
+    target_t = message.reply_to_message.from_user
+
+    sender_tid = sender_t.id
+    target_tid = target_t.id
+
+    # Обновление и получение данных отправителя и получателя в БД
+    sender = await db.mk_user(user=sender_t)
+    target = await db.mk_user(user=target_t)
+
+    # Проверка, вдруг у получателя уже есть активный мут
+    target_restr = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
+    for restr in target_restr:
+        if restr['restr'] != "mute":
+            continue
+        admin = await db.get_user_by_tid(restr['admin_tid'])
+        date_reg = await parse_date(restr['date_reg'], "HH:mm d MMMM")
+        date_until = await parse_date(restr['date_until'], "HH:mm d MMMM")
+        return await message.reply(
+            # Вывод
+            text=(
+                 "Этот человек уже замьючен.\n\n"
+                f"🔇 {target['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                f"⏳ Выдано <b>{date_reg}</b>\n"
+                f"🛡️ Выдал {admin['link']}\n"
+                f"<blockquote>{restr['reason']}</blockquote>"
+            )
+        )
+
+    # Проверка прав
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if not sender_admin:
+        # Обычные пользователи не могут мутить
+        return await message.reply(f"Недостаточно прав (<b>Пользователь</b>/<b>{admin_type_str['moder']}</b>)") # Вывод
+
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+    if target_admin:
+        # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
+        sender_admin_post = sender_admin['post']
+        target_admin_post = target_admin['post']
+        if target_admin_post in ("helper", "owner"):
+            return await message.reply(f"Нельзя замутить {admin_type_str['helper'].lower()}а или {admin_type_str['owner']}.")
+        if target_admin_post == "admin" and admin_type_strint[sender_admin_post] < 3:
+            sender_admin_post_name = admin_type_str[sender_admin['post']]
+            return await message.reply(f"Недостаточно прав (<b>{sender_admin_post_name}</b>/<b>{admin_type_str['helper']}</b>)") # Вывод
+        if target_admin_post == "moder" and admin_type_strint[sender_admin_post] < 2:
+            sender_admin_post_name = admin_type_str[sender_admin['post']]
+            return await message.reply(f"Недостаточно прав (<b>{sender_admin_post_name}</b>/<b>{admin_type_str['admin']}</b>)") # Вывод
+
+    # Парсинг сообщения: получаю время наказания и причину
+    until_date = 604_800 # Если не указано время - по стандарту одна неделя
+    reason = f"Причина не указана. | \"{message.reply_to_message.text}\"" # Если не указана причина - так и пишем
+    text = message.text
+
+        # Получаю причину
+    text = text.split("\n")
+    if len(text) == 1:
+        pass
+    elif len(text) == 2:
+        reason = f"{text[1]} | \"{message.reply_to_message.text}\""
+    else:
+        return await message.reply("Неккоректный ввод команды.\n<pre>гмут {число} {время}\n{Причина}</pre>") # Вывод
+
+        # Получаю время
+    time_str = text[0].split(" ", 1)
+    if len(time_str) == 1:
+        until_date = 1
+        until_date_str = "бессрочно"
+    else:
+        until_date_pack = await parse_time(time_str[1])
+        if until_date_pack is None:
+            return await message.reply("Неккоректный ввод команды.\n<pre>гмут {число} {время}\n{Причина}</pre>") # Вывод
+        until_date, until_date_str = until_date_pack
+
+    # Запись в БД
+    restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason, until_date)
+    if restr is None:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Собственно создание ограничения. Запрещаю вообще всё
+    chats_tid = web['chats_tid']
+    for chat_tid in chats_tid:
+        try:
+            await bot.restrict_chat_member(
+                chat_id=chat_tid,
+                user_id=target_tid,
+                permissions=ChatPermissions(
+                    can_send_message=False,
+                    can_send_audios=False,
+                    can_send_documents=False,
+                    can_send_photos=False,
+                    can_send_videos=False,
+                    can_send_video_notes=False,
+                    can_send_voice_notes=False,
+                    can_send_polls=False,
+                    can_send_other_messages=False,
+                    can_add_web_page_previews=False,
+                    can_edit_tag=False,
+                    can_change_info=False,
+                    can_invite_users=False,
+                    can_pin_messages=False,
+                    can_manage_topics=False
+                ),
+                use_independent_chat_permissions=True,
+                until_date=datetime.fromtimestamp(until_date)
+            )
+        except Exception: # Если бота нет в чате или нет прав
+            continue
+
+    # Вывод
+    await message.reply(
+        f"🔇 {target['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> на <b>{until_date_str}</b>\n"
+        f"🛡️ Выдал {sender['link']}\n"
+        f"<blockquote>{reason}</blockquote>"
+    )
+
+# Гразмут - Команда для глобального размута человека
+
+@rt.message(F.text.casefold().startswith("гразмут"))
+@rt.message(F.text.casefold().startswith("глоразмут"))
+async def gunmute(message: Message):
+    if message.chat.type not in ("group", "supergroup"):
+        return
+
+    if not message.reply_to_message:
+        # TODO Сделать возможность обращения по @юзернейму
+        # TODO Заблокать взаимодействие с самим ботом
+        return await message.reply("Глобальный размут нужно писать в ответ на сообщение.") # Вывод
+
+    chat = await db.get_chat(message.chat.id)
+    if chat is None:
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+
+    web_id = chat['web_id']
+    web = await db.get_web(web_id)
+    if web is None:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    sender_t = message.from_user
+    target_t = message.reply_to_message.from_user
+
+    sender_tid = sender_t.id
+    target_tid = target_t.id
+
+    # Обновление и получение данных отправителя и получателя в БД
+    await db.mk_user(user=sender_t)
+    await db.mk_user(user=target_t)
+
+    # Проверка прав отправителя (размучивать могут те же, кто и мутить)
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if not sender_admin:
+        return await message.reply(f"Недостаточно прав (<b>Пользователь</b>/<b>{admin_type_str['moder']}</b>)") # Вывод
+
+    # Проверка, есть ли вообще активный мут у пользователя в этой паутине
+    target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
+    restr = None
+    for r in target_restrs:
+        if restr['restr'] == "mute":
+            restr = r
+            break
+
+    if restr is None:
+        return await message.reply("У этого пользователя нет активного глобального мута в этой паутине.") # Вывод
+
+    # Удаление записи из БД
+    result = await db.rm_restr(restr['restr_id'])
+    if not result:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Собственно снятие ограничениq
+    chats_tid = web['chats_tid']
+    for chat_tid in chats_tid:
+        try:
+            await bot.restrict_chat_member(
+                chat_id=chat_tid,
+                user_id=target_tid,
+                permissions=ChatPermissions(
+                    can_send_messages=True,
+                    can_send_audios=True,
+                    can_send_documents=True,
+                    can_send_photos=True,
+                    can_send_videos=True,
+                    can_send_video_notes=True,
+                    can_send_voice_notes=True,
+                    can_send_polls=True,
+                    can_send_other_messages=True,
+                    can_add_web_page_previews=True,
+                    can_change_info=True,
+                    can_invite_users=True,
+                    can_pin_messages=True,
+                    can_manage_topics=True
+                ),
+                use_independent_chat_permissions=True
+            )
+        except Exception:
+            continue
+
+    # Вывод
+    target = await db.get_user_by_tid(target_tid)
+    sender = await db.get_user_by_tid(sender_tid)
+    await message.reply(
+        f"🔊 {target['link']}, глобальный размут в паутине чатов <b>{web['forename']}</b>\n"
+        f"🛡️ Снял {sender['link']}"
+    )
+
 # # # # # # # # #
 #   Остальное   #
 # # # # # # # # #
 
 #
 
-@rt.message(F.text.startswith("жалоба"))
-@rt.message(F.text.startswith(".жалоба")) # Для тех, кто привык к Ирис боту
-@rt.message(F.text.startswith("репорт"))  # Для тех, кто привык к Ирис боту
-@rt.message(F.text.startswith(".репорт")) # Для тех, кто привык к Ирис боту
+@rt.message(F.text.casefold().startswith("жалоба"))
+@rt.message(F.text.casefold().startswith(".жалоба")) # Для тех, кто привык к Ирис боту
+@rt.message(F.text.casefold().startswith("репорт"))  # Для тех, кто привык к Ирис боту
+@rt.message(F.text.casefold().startswith(".репорт")) # Для тех, кто привык к Ирис боту
 async def report(message: Message):
     if message.chat.type not in ("group", "supergroup"):
         return
@@ -670,9 +904,8 @@ async def report(message: Message):
         return
 
     chat = await db.get_chat(message.chat.id)
-
     if chat is None:
-        return await message.reply("Этот чат не привязан ни к какой паутине.") # Вывод
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     web_id = chat['web_id']
 
@@ -716,7 +949,7 @@ async def report(message: Message):
 
 # 
 
-@rt.message(F.text.startswith("чаты"))
+@rt.message(F.text.casefold().startswith("чаты"))
 async def chats_tid(message: Message):
     if message.chat.type not in ("group", "supergroup"):
         return
@@ -727,7 +960,7 @@ async def chats_tid(message: Message):
     chat = await db.get_chat(message.chat.id)
 
     if chat is None:
-        return await message.reply("Этот чат не состоит ни в какой паутине.") # Вывод
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     web_id = chat['web_id']
     web = await db.get_web(web_id)

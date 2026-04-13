@@ -19,11 +19,12 @@
   - [ ] Add special mark when reporting admin
 - [x] Add description for web                           ([d6e4dcd](https://github.com/ibryaev/localwebot/commit/d6e4dcd1204d113d583afdefdcd6955daa5548fd))
 - [ ] Add schedulers:
-  - [ ] Add scheduler for restrictions (`restrs` table): bans & mutes
+  - [ ] Add scheduler for restrictions (`restrs` table): bans & mutes <u>**(!)**</u>
   - [x] Add scheduler for webs, where creator's account got deleted ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
 - [x] Store more profiles info in `users` table in db   ([b6eea9a](https://github.com/ibryaev/localwebot/commit/b6eea9a3ec8e9adafdf398fd91c41e38ab278fb4))
 - [x] Implement ability to add admin in web             ([65c2216](https://github.com/ibryaev/localwebot/commit/65c2216e78ee6218dccf0f4a5f2dc27e4decfdea))
-- [ ] Implement ban & mute <u>**(WIP)**</u>
+- [ ] Implement globals ban & mute <u>**(WIP)**</u>
+  - [x] Gmute
 - [x] Add ability to view web's chats list from chat from this web ([b8f8089](https://github.com/ibryaev/localwebot/commit/b8f8089c4fd785c5ef52b07b57d2b0950b3891cf))
 - [ ] Add function for chats list formatting (Формируем список чатов)
-- [ ] Restrict to report, (pro/de)mote & etc. actions with the bot <u>**(WIP)**</u>
+- [ ] Restrict to report, (pro/de)mote & etc. actions with the bot <u>**(!)**</u>
