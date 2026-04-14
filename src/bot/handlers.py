@@ -3,6 +3,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, ChatPermissions
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
+from random import randint
 
 from config import *
 from utils import *
@@ -435,10 +436,10 @@ async def up(message: Message):
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
 
     # Проверка прав
-    if not sender_admin or admin_type_strint[sender_admin['post']] < 3:
+    if not sender_admin or post_strint[sender_admin['post']] < 3:
         # Только хелперы и владелец могут повышать
-        post_name = admin_type_str[sender_admin['post']] if sender_admin else "Пользователь"
-        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{admin_type_str['helper']}</b>)") # Вывод
+        post_name = post_str[sender_admin['post']] if sender_admin else "Пользователь"
+        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{post_str['helper']}</b>)") # Вывод
 
     sender_post = sender_admin['post']
 
@@ -449,7 +450,7 @@ async def up(message: Message):
             return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
         
         target = await db.get_user_by_tid(target_tid)
-        return await message.reply(f"🛡 {target['link']} назначен <b>{admin_type_str['moder'].lower()}ом</b> паутины!") # Вывод
+        return await message.reply(f"🛡 {target['link']} назначен <b>{post_str['moder'].lower()}ом</b> паутины!") # Вывод
 
     # Повышаю ранг
     target_post = target_admin['post']
@@ -473,14 +474,14 @@ async def up(message: Message):
         if sender_post != "owner":
             return await message.reply("Назначать новых хелперов может только владелец паутины.") # Вывод
 
-    new_post = admin_type_intstr[admin_type_strint[target_post] + 1]
+    new_post = post_intstr[post_strint[target_post] + 1]
     result = await db.upd_admin_post(target_tid, web_id, new_post)
     if not result:
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
     target = await db.get_user_by_tid(target_tid)
-    return await message.reply(f"⬆️ {target['link']} повышен до <b>{admin_type_str[new_post].lower()}а</b>!") # Вывод
+    return await message.reply(f"⬆️ {target['link']} повышен до <b>{post_str[new_post].lower()}а</b>!") # Вывод
 
 # Понижание админа через текстовую команду
 # Если должность модер - полностью снимает.
@@ -518,10 +519,10 @@ async def down(message: Message):
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
 
     # Проверка прав
-    if not sender_admin or admin_type_strint[sender_admin['post']] < 3:
+    if not sender_admin or post_strint[sender_admin['post']] < 3:
         # Только хелперы и владелец могут повышать
-        post_name = admin_type_str[sender_admin['post']] if sender_admin else "Пользователь"
-        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{admin_type_str['helper']}</b>)") # Вывод
+        post_name = post_str[sender_admin['post']] if sender_admin else "Пользователь"
+        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{post_str['helper']}</b>)") # Вывод
 
     sender_post = sender_admin['post']
 
@@ -556,14 +557,14 @@ async def down(message: Message):
         target = await db.get_user_by_tid(target_tid)
         return await message.reply(f"🔥 {target['link']} снят с должности!")
 
-    new_post = admin_type_intstr[admin_type_strint[target_post] - 1]
+    new_post = post_intstr[post_strint[target_post] - 1]
     result = await db.upd_admin_post(target_tid, web_id, new_post)
     if not result:
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
     target = await db.get_user_by_tid(target_tid)
-    return await message.reply(f"⬇️ {target['link']} понижен до <b>{admin_type_str[new_post].lower()}а</b>!") # Вывод
+    return await message.reply(f"⬇️ {target['link']} понижен до <b>{post_str[new_post].lower()}а</b>!") # Вывод
 
 # Полное снятие админа с должности через текстовую команду
 # Прописать может только хелпер или владелец.
@@ -602,10 +603,10 @@ async def fire(message: Message):
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
 
     # Проверка прав отправителя
-    if not sender_admin or admin_type_strint[sender_admin['post']] < 3:
+    if not sender_admin or post_strint[sender_admin['post']] < 3:
         # Снимать могут только хелперы и владелец
-        post_name = admin_type_str[sender_admin['post']] if sender_admin else "Пользователь"
-        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{admin_type_str['helper']}</b>)") # Вывод
+        post_name = post_str[sender_admin['post']] if sender_admin else "Пользователь"
+        return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{post_str['helper']}</b>)") # Вывод
 
     sender_post = sender_admin['post']
 
@@ -652,103 +653,155 @@ async def fire(message: Message):
 @rt.message(F.text.casefold().startswith("гмут"))
 @rt.message(F.text.casefold().startswith("гломут")) # Для тех, кто привык к Ирис боту
 async def gmute(message: Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
+    # 4/14/26: Я с нуля переписал команду глобального мута.
+    # Я пересмотрел свой взгялд на то, как стоит писать код:
+    # Раньше я писал код с "поэтапной" логикой. Теперь же я считаю,
+    # что лучше пожертвовать "пару байтами", взаимен на структурированность кода.
+    # Раньше я писал комментарии только в тех местах, которые как мне казалось, наиболее замудрённые.
+    # Теперь же я в целом пишу больше комментариев: даже в простейших местах.
+    # Ктобы мог подумать, что так намного легче передвигаться по коду? Глазу есть за что цепляться.
+    # TODO Пересмотреть весь код в файлах handers.py и callbacks.py
 
-    if not message.reply_to_message:
-        # TODO Сделать возможность обращения по @юзернейму
-        # TODO Заблокать взаимодействие с самим ботом
-        return await message.reply("Глобальный мут нужно писать в ответ на сообщение.") # Вывод
+    if message.chat.type not in ("group", "supergroup"): return
 
-    chat = await db.get_chat(message.chat.id)
-    if chat is None:
+    # Создание/поиск отправителя в БД
+    sender_user = await db.mk_user(user=message.from_user)
+    if sender_user is None:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Поиск получателя
+    target_user = {}
+    if message.reply_to_message is None:
+        # Если сообщение - не ответ
+        target_username = await grep_username(message.text.split("\n")[0]) # Попытка найти в тексте @юзернейм (grep_username())
+        if target_username is None:
+            # @юз не найден
+            return await message.reply("Нужно либо ответить на сообщение, либо дать @юзернейм.")  # Вывод
+        elif target_username.isdigit():
+            # Если найденный @юз является TID
+            target_user = await db.get_user_by_tid(int(target_username))
+        else:
+            # @юз найден
+            target_tid = await db.get_tid(target_username)
+            if target_tid is None:
+                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+            target_user = await db.get_user_by_tid(target_tid) # Получатель найден
+    else:
+        # Иначе тупо создаю пользователя в БД
+        target_user = await db.mk_user(user=message.reply_to_message.from_user)
+    if target_user is None: # LOL      hoiv yv8ty gvgb0ujnu 9hb97yb         --- Серафим даун
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    sender_tid = sender_user['tid'] # TID отправителя
+    target_tid = target_user['tid'] # TID получателя
+
+    # Проверка корректности отправителя и получателя
+    if sender_tid == target_tid:
+        easteregg_chance = randint(1, 100) # Пасхалка
+        if easteregg_chance <= 10:
+            return await message.reply("ты мазохист?")
+        else:
+            return await message.reply("Нельзя взаимодействовать с самим собой.")
+    if target_tid == BOT_TID:    return await message.reply("Нельзя взаимодействовать с ботом.")
+
+    # Получение чата из таблиц users & chats
+    chat_user = await db.mk_user(chat=message.chat)
+    chat_chat = await db.get_chat(message.chat.id)
+    if chat_user is None or chat_chat is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
-    web_id = chat['web_id']
-    web = await db.get_web(web_id)
+    # Получаю паутину
+    web = await db.get_web(chat_chat['web_id'])
     if web is None:
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    sender_t = message.from_user
-    target_t = message.reply_to_message.from_user
+    chat_tid = message.chat.id # TID чата
+    web_id = web['web_id']     # ID паутины
 
-    sender_tid = sender_t.id
-    target_tid = target_t.id
-
-    # Обновление и получение данных отправителя и получателя в БД
-    sender = await db.mk_user(user=sender_t)
-    target = await db.mk_user(user=target_t)
-
-    # Проверка, вдруг у получателя уже есть активный мут
+    # Проверка, вдруг у получателя уже есть активное наказание
     target_restr = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
     for restr in target_restr:
         if restr['restr'] != "mute":
             continue
-        admin = await db.get_user_by_tid(restr['admin_tid'])
+
+        # Если искомое наказание было найдено
+        # Вывод
+        admin_user = await db.get_user_by_tid(restr['admin_tid'])
         date_reg = await parse_date(restr['date_reg'], "HH:mm d MMMM")
         date_until = await parse_date(restr['date_until'], "HH:mm d MMMM")
         return await message.reply(
-            # Вывод
             text=(
                  "Этот человек уже замьючен.\n\n"
-                f"🔇 {target['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                f"🆔 <code>@{target_tid}</code>\n"
                 f"⏳ Выдано <b>{date_reg}</b>\n"
-                f"🛡️ Выдал {admin['link']}\n"
+                f"🛡️ Выдал {admin_user['link']}\n"
                 f"<blockquote>{restr['reason']}</blockquote>"
             )
         )
 
     # Проверка прав
+    # Проверка на то, что отправитель является админом
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if not sender_admin:
-        # Обычные пользователи не могут мутить
-        return await message.reply(f"Недостаточно прав (<b>Пользователь</b>/<b>{admin_type_str['moder']}</b>)") # Вывод
+    if sender_admin is None:
+        # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
+        return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
 
+    # Проверка на то, что получатель является админом
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
     if target_admin:
         # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
         sender_admin_post = sender_admin['post']
         target_admin_post = target_admin['post']
+
         if target_admin_post in ("helper", "owner"):
-            return await message.reply(f"Нельзя замутить {admin_type_str['helper'].lower()}а или {admin_type_str['owner']}.")
-        if target_admin_post == "admin" and admin_type_strint[sender_admin_post] < 3:
-            sender_admin_post_name = admin_type_str[sender_admin['post']]
-            return await message.reply(f"Недостаточно прав (<b>{sender_admin_post_name}</b>/<b>{admin_type_str['helper']}</b>)") # Вывод
-        if target_admin_post == "moder" and admin_type_strint[sender_admin_post] < 2:
-            sender_admin_post_name = admin_type_str[sender_admin['post']]
-            return await message.reply(f"Недостаточно прав (<b>{sender_admin_post_name}</b>/<b>{admin_type_str['admin']}</b>)") # Вывод
+            return await message.reply(f"Нельзя наказать {post_str['helper']}а или {post_str['owner'][:-2]}ца.")                # Вывод
+        if target_admin_post == "admin" and post_strint[sender_admin_post] < 3:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['helper']}</b>)") # Вывод
+        if target_admin_post == "moder" and post_strint[sender_admin_post] < 2:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)")  # Вывод
 
-    # Парсинг сообщения: получаю время наказания и причину
-    until_date = 604_800 # Если не указано время - по стандарту одна неделя
-    reason = f"Причина не указана. | \"{message.reply_to_message.text}\"" # Если не указана причина - так и пишем
-    text = message.text
+    # Парсинг сообщения: причина и время наказания
+    try:
+        text = message.text.replace(f"@{target_username}", "").replace("  ", " ").strip() # Перед парсингом убираем из сообщения @юз получателя
+    except Exception:
+        # Если @юза и так нет
+        text = message.text
+    date_until = datetime.now().timestamp() + 604_800.0 # Если не указано время - по стандарту одна неделя
+    date_until_str = "1 неделю"
+    target_quote = f"| \"{message.reply_to_message.text or "[ВЛОЖЕНИЕ]"}\"" if message.reply_to_message else ""
+    reason = f"Причина не указана.{target_quote}" # Если не указана причина - так и пишу
 
-        # Получаю причину
-    text = text.split("\n")
-    if len(text) == 1:
+    ## Причина
+    text_rows = text.split("\n")
+    if len(text_rows) == 1:
+        # Причина не указана
         pass
-    elif len(text) == 2:
-        reason = f"{text[1]} | \"{message.reply_to_message.text}\""
+    elif len(text_rows) == 2:
+        # Причина - весь второй абзац
+        reason = f"{text_rows[1]}{target_quote}"
     else:
-        return await message.reply("Неккоректный ввод команды.\n<pre>гмут {число} {время}\n{Причина}</pre>") # Вывод
+        # Неккоректное колво абзацей
+        return await message.reply("Неккоректный ввод команды.\n<pre>гмут {число} {время}\n{Причина (опционально)}</pre>") # Вывод
 
-        # Получаю время
-    time_str = text[0].split(" ", 1)
+    ## Время наказания
+    time_str = text_rows[0].split(" ", 1)
     if len(time_str) == 1:
-        until_date = 1
-        until_date_str = "бессрочно"
+        # "гмут"
+        pass
     else:
-        until_date_pack = await parse_time(time_str[1])
-        if until_date_pack is None:
-            return await message.reply("Неккоректный ввод команды.\n<pre>гмут {число} {время}\n{Причина}</pre>") # Вывод
-        until_date, until_date_str = until_date_pack
+        date_until_pack = await parse_time(time_str[1])
+        if date_until_pack is None:
+            return await message.reply("Неккоректный ввод команды.\n<pre>гмут {число} {время}\n{Причина (опционально)}</pre>") # Вывод
+        date_until, date_until_str = date_until_pack
 
-    # Запись в БД
-    restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason, until_date)
+    # Непосредственное назначение наказания
+    ## Запись в БД
+    restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason, date_until)
     if restr is None:
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    # Собственно создание ограничения. Запрещаю вообще всё
+    ## Назначение в Телеграме
     chats_tid = web['chats_tid']
     for chat_tid in chats_tid:
         try:
@@ -773,72 +826,120 @@ async def gmute(message: Message):
                     can_manage_topics=False
                 ),
                 use_independent_chat_permissions=True,
-                until_date=datetime.fromtimestamp(until_date)
+                until_date=datetime.fromtimestamp(date_until)
             )
         except Exception: # Если бота нет в чате или нет прав
             continue
 
     # Вывод
     await message.reply(
-        f"🔇 {target['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> на <b>{until_date_str}</b>\n"
-        f"🛡️ Выдал {sender['link']}\n"
+        f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> на <b>{date_until_str}</b>\n"
+        f"🆔 <code>@{target_tid}</code>\n"
+        f"🛡️ Выдал {sender_user['link']}\n"
         f"<blockquote>{reason}</blockquote>"
     )
 
-# Гразмут - Команда для глобального размута человека
+# Гразмут - Команда для снятия глобального мута
 
 @rt.message(F.text.casefold().startswith("гразмут"))
-@rt.message(F.text.casefold().startswith("глоразмут"))
+@rt.message(F.text.casefold().startswith("глоразмут")) # Для тех, кто привык к Ирис боту
 async def gunmute(message: Message):
-    if message.chat.type not in ("group", "supergroup"):
-        return
+    if message.chat.type not in ("group", "supergroup"): return
 
-    if not message.reply_to_message:
-        # TODO Сделать возможность обращения по @юзернейму
-        # TODO Заблокать взаимодействие с самим ботом
-        return await message.reply("Глобальный размут нужно писать в ответ на сообщение.") # Вывод
+    # Создание/поиск отправителя в БД
+    sender_user = await db.mk_user(user=message.from_user)
+    if sender_user is None:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    chat = await db.get_chat(message.chat.id)
-    if chat is None:
+    # Поиск получателя
+    target_user = {}
+    if message.reply_to_message is None:
+        # Если сообщение - не ответ
+        target_username = await grep_username(message.text.split("\n")[0]) # Попытка найти в тексте @юзернейм (grep_username())
+        if target_username is None:
+            # @юз не найден
+            return await message.reply("Нужно либо ответить на сообщение, либо дать @юзернейм.")  # Вывод
+        elif target_username.isdigit():
+            # Если найденный @юз является TID
+            target_user = await db.get_user_by_tid(int(target_username))
+        else:
+            # @юз найден
+            target_tid = await db.get_tid(target_username)
+            if target_tid is None:
+                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+            target_user = await db.get_user_by_tid(target_tid) # Получатель найден
+    else:
+        # Иначе тупо создаю пользователя в БД
+        target_user = await db.mk_user(user=message.reply_to_message.from_user)
+    if target_user is None:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    sender_tid = sender_user['tid'] # TID отправителя
+    target_tid = target_user['tid'] # TID получателя
+
+    # Проверка корректности отправителя и получателя
+    if sender_tid == target_tid: return await message.reply("Нельзя взаимодействовать с самим собой.")
+    if sender_tid == BOT_TID:    return await message.reply("Нельзя взаимодействовать с ботом.")
+    
+    # Получение чата из таблиц users & chats
+    chat_user = await db.mk_user(chat=message.chat)
+    chat_chat = await db.get_chat(message.chat.id)
+    if chat_user is None or chat_chat is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
-    web_id = chat['web_id']
-    web = await db.get_web(web_id)
+    # Получаю паутину
+    web = await db.get_web(chat_chat['web_id'])
     if web is None:
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    sender_t = message.from_user
-    target_t = message.reply_to_message.from_user
+    chat_tid = message.chat.id # TID чата
+    web_id = web['web_id']     # ID паутины
 
-    sender_tid = sender_t.id
-    target_tid = target_t.id
-
-    # Обновление и получение данных отправителя и получателя в БД
-    await db.mk_user(user=sender_t)
-    await db.mk_user(user=target_t)
-
-    # Проверка прав отправителя (размучивать могут те же, кто и мутить)
-    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if not sender_admin:
-        return await message.reply(f"Недостаточно прав (<b>Пользователь</b>/<b>{admin_type_str['moder']}</b>)") # Вывод
-
-    # Проверка, есть ли вообще активный мут у пользователя в этой паутине
+    # Проверка, есть ли вообще у получателя активное наказание
     target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
-    restr = None
-    for r in target_restrs:
-        if restr['restr'] == "mute":
-            restr = r
+    target_restr = {}
+    for tr in target_restrs:
+        if tr['restr'] == "mute":
+            target_restr = tr
             break
 
-    if restr is None:
-        return await message.reply("У этого пользователя нет активного глобального мута в этой паутине.") # Вывод
+    if not target_restr:
+        # Если искомое наказание не было найдено
+        return await message.reply("У этого пользователя нет активного глобального мута в этой паутине.")
 
-    # Удаление записи из БД
-    result = await db.rm_restr(restr['restr_id'])
-    if not result:
+    # Проверка прав
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if sender_admin is None:
+        return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
+
+    # Проверка прав
+    # Проверка на то, что отправитель является админом
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if sender_admin is None:
+        # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
+        return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
+
+    # Проверка, если получатель является админом
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+    if target_admin:
+        # Убрать наказание модератору может админ. Убрать наказание админу может хелпер. Хелпер и владелец не могут быть наказаны
+        sender_admin_post = sender_admin['post']
+        target_admin_post = target_admin['post']
+
+        if target_admin_post in ("helper", "owner"):
+            return await message.reply(f"{post_str['helper']} или {post_str['owner']} и так чисто технически не могут быть наказаны.")                # Вывод
+        if target_admin_post == "admin" and post_strint[sender_admin_post] < 3:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['helper']}</b>)") # Вывод
+        if target_admin_post == "moder" and post_strint[sender_admin_post] < 2:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)")  # Вывод
+
+    # Непосредственное удаление наказания
+    ## Удаление записи из БД
+    result = await db.rm_restr(target_restr['restr_id'])
+    if result is None:
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    # Собственно снятие ограничениq
+    ## Назначение в Телеграме
     chats_tid = web['chats_tid']
     for chat_tid in chats_tid:
         try:
@@ -846,7 +947,7 @@ async def gunmute(message: Message):
                 chat_id=chat_tid,
                 user_id=target_tid,
                 permissions=ChatPermissions(
-                    can_send_messages=True,
+                    can_send_message=True,
                     can_send_audios=True,
                     can_send_documents=True,
                     can_send_photos=True,
@@ -856,6 +957,7 @@ async def gunmute(message: Message):
                     can_send_polls=True,
                     can_send_other_messages=True,
                     can_add_web_page_previews=True,
+                    can_edit_tag=True,
                     can_change_info=True,
                     can_invite_users=True,
                     can_pin_messages=True,
@@ -863,15 +965,14 @@ async def gunmute(message: Message):
                 ),
                 use_independent_chat_permissions=True
             )
-        except Exception:
+        except Exception: # Если бота нет в чате или нет прав
             continue
 
     # Вывод
-    target = await db.get_user_by_tid(target_tid)
-    sender = await db.get_user_by_tid(sender_tid)
     await message.reply(
-        f"🔊 {target['link']}, глобальный размут в паутине чатов <b>{web['forename']}</b>\n"
-        f"🛡️ Снял {sender['link']}"
+        f"🔊 {target_user['link']}, глобальный мут в паутине <b>{web['forename']}</b> снят\n"
+        f"🆔 <code>@{target_tid}</code>\n"
+        f"🛡️ Снял {sender_user['link']}"
     )
 
 # # # # # # # # #

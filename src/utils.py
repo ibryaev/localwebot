@@ -2,7 +2,7 @@ from aiogram.types import User
 from random import choice
 from datetime import datetime
 from babel.dates import format_datetime
-from config import bot
+from config import *
 
 async def rndemoji() -> str:
     '''
@@ -38,7 +38,6 @@ async def parse_time(time_str: str, spectime: float = None) -> tuple[float, str]
     Конвертирует время из формата например "30 мин" в timestamp.  
     Если указать ``spectime``, то функция вернёт ``spectime + time_str``. Иначе ``datime.now().timestamp() + time_str``
     '''
-
     time_str = time_str.split(" ")
 
     if len(time_str) != 2:
@@ -67,7 +66,7 @@ async def parse_time(time_str: str, spectime: float = None) -> tuple[float, str]
                 s = "часа"
             else:
                 s = "часов"
-        case "д" | "день" | "дня" | "дней":
+        case "д" | "дн" | "день" | "дня" | "дней":
             multiply = 86_400
             if str(d)[-1] == "1":
                 s = "день"
@@ -98,3 +97,23 @@ async def parse_time(time_str: str, spectime: float = None) -> tuple[float, str]
             return None
 
     return (spectime if spectime else datetime.now().timestamp()) + float(d * multiply), f"{d} {s}"
+
+async def grep_username(text: str, split_sep: str = " ", split_maxsplit: int = -1) -> str:
+    '''Парсит текст на начилие ОДНОГО Telegram @юзернейма'''
+    text = text.split(split_sep, split_maxsplit)
+
+    for word in text:
+        if word.startswith("@"):
+            username = word.removeprefix("@")
+
+            for mark in punctuation:
+                if mark in username:
+                    return None
+
+            for letter in cyrillic_letters:
+                if letter in username:
+                    return None
+
+            return username
+
+    return None
