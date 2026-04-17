@@ -35,6 +35,8 @@ class WebTransferOwnership(StatesGroup):
 
 @rt.callback_query(F.data == "rename")
 async def rename(callback: CallbackQuery, state: FSMContext):
+    await on_every_message(callback=callback)
+
     # Вывод
     await state.set_state(WebRename.forename)
     await callback.message.edit_text("Введите новое имя паутины")
@@ -96,8 +98,10 @@ async def rename_msg_emoji(message: Message, state: FSMContext):
 
 @rt.callback_query(F.data == "about")
 async def about(callback: CallbackQuery, state: FSMContext):
-    user_tid = callback.from_user.id
-    web = await db.get_web_by_owner_tid(user_tid)
+    await on_every_message(callback=callback)
+
+    # Получение данных из БД
+    web = await db.get_web_by_owner_tid(callback.from_user.id)
     if web is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -146,8 +150,10 @@ async def about_msg_description(message: Message, state: FSMContext):
 
 @rt.callback_query(F.data == "remove")
 async def remove(callback: CallbackQuery):
-    user_tid = callback.from_user.id
-    web = await db.get_web_by_owner_tid(user_tid)
+    await on_every_message(callback=callback)
+
+    # Получение данных из БД
+    web = await db.get_web_by_owner_tid(callback.from_user.id)
     if web is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -182,8 +188,10 @@ async def remove(callback: CallbackQuery):
 
 @rt.callback_query(F.data == "transfer")
 async def transfer(callback: CallbackQuery, state: FSMContext):
-    user_tid = callback.from_user.id
-    web = await db.get_web_by_owner_tid(user_tid)
+    await on_every_message(callback=callback)
+
+    # Получение данных из БД
+    web = await db.get_web_by_owner_tid(callback.from_user.id)
     if web is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -198,30 +206,25 @@ async def transfer(callback: CallbackQuery, state: FSMContext):
 
 @rt.message(WebTransferOwnership.owner_tid)
 async def transfer_msg_owner_tid(message: Message, state: FSMContext):
-    new_owner_tusername = await grep_username(message.text)
-    if new_owner_tusername is None:
+    owner_username = await grep_username(message.text)
+    if owner_username is None:
         return await message.answer("Неверный формат. Попробуйте снова.") # Вывод
 
     data = await state.get_data()
+    await state.clear()
 
     web = data['web']
     web_id = web['web_id']
-    new_owner_tid = await db.get_tid(new_owner_tusername)
-
-    await state.clear()
-
-    if new_owner_tid is None:
+    owner_tid = await db.get_tid(owner_username)
+    if owner_tid is None:
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
 
-    is_new_owner_admin = await db.get_admin_by_tid(new_owner_tid, web_id)
-    if is_new_owner_admin is None:
+    if await db.get_admin_by_tid(owner_tid, web_id) is None:
         return await message.answer("Новый владелец паутины должен обладать в ней хоть какой-нибудь должностью.") # Вывод
-
-    if await db.get_web_by_owner_tid(new_owner_tid) is not None:
+    if await db.get_web_by_owner_tid(owner_tid) is not None:
         return await message.answer("У этого пользователя уже есть своя паутина. Один человек может иметь только одну паутину.") # Вывод
 
-    new_owner_tusername = await db.upd_web_owner(web_id, new_owner_tid, message.from_user.id)
-    if not new_owner_tusername:
+    if not await db.upd_web_owner(web_id, owner_tid, message.from_user.id):
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     await message.answer("📤 Теперь эта паутина <b>не принадлежит</b> Вам!") # Вывод
@@ -236,15 +239,15 @@ async def admin_output(admin: dict, admin_tid: int, post: str, heir_tid: int, ca
     admin_db = await db.get_user_by_tid(admin_tid)
     admin_link = admin_db['link'] if admin_db else f"<code>{admin_tid}</code>"
     post = post_str[post]
-    heir = ""
+    heir_text = ""
     if admin_tid == heir_tid:
-        heir = " 👑"
+        heir_text = " 👑"
     restrs_count = admin['restrs_count']
     date_reg = await parse_date(admin['date_reg'])
 
     await callback.message.edit_text(
         text=(
-            f"🛡️ <b>{admin_link}</b> — <b>{post}</b>{heir}\n"
+            f"🛡️ <b>{admin_link}</b> — <b>{post}</b>{heir_text}\n"
             f"Был нанят: <b>{date_reg}</b> | Выдано наказаний: <b>{restrs_count}</b>\n\n"
         ),
         reply_markup=await kb.admin(admin_id)
@@ -256,9 +259,10 @@ async def admin_output(admin: dict, admin_tid: int, post: str, heir_tid: int, ca
 
 @rt.callback_query(F.data == "rm_admin_chat")
 async def rm_admin_chat(callback: CallbackQuery):
-    user_tid = callback.from_user.id
-    web = await db.get_web_by_owner_tid(user_tid)
+    await on_every_message(callback=callback)
 
+    # Получение данных из БД
+    web = await db.get_web_by_owner_tid(callback.from_user.id)
     if web is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -300,9 +304,10 @@ async def rm_admin_chat(callback: CallbackQuery):
 
 @rt.callback_query(F.data == "rm_heir")
 async def rm_heir(callback: CallbackQuery):
-    user_tid = callback.from_user.id
-    web = await db.get_web_by_owner_tid(user_tid)
+    await on_every_message(callback=callback)
 
+    # Получение данных из БД
+    web = await db.get_web_by_owner_tid(callback.from_user.id)
     if web is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -344,8 +349,10 @@ async def rm_heir(callback: CallbackQuery):
 
 @rt.callback_query(F.data == "admins")
 async def admins(callback: CallbackQuery):
-    user_tid = callback.from_user.id
-    web = await db.get_web_by_owner_tid(user_tid)
+    await on_every_message(callback=callback)
+
+    # Получение данных из БД
+    web = await db.get_web_by_owner_tid(callback.from_user.id)
     if web is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -373,7 +380,10 @@ async def admins(callback: CallbackQuery):
 
 @rt.callback_query(F.data.startswith("admin_"))
 async def admin(callback: CallbackQuery):
+    await on_every_message(callback=callback)
     user_tid = callback.from_user.id
+
+    # Получение данных из БД
     web = await db.get_web_by_owner_tid(user_tid)
     if web is None:
         # Вывод
@@ -414,12 +424,10 @@ async def admin_up(callback: CallbackQuery):
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
         return await callback.answer()
-
     if admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
         return await callback.answer()
-
     if user_admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ в этой сетке</b>.")
@@ -490,12 +498,10 @@ async def admin_down(callback: CallbackQuery):
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
         return await callback.answer()
-
     if admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
         return await callback.answer()
-
     if user_admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ в этой сетке</b>.")
@@ -555,12 +561,10 @@ async def admin_fire(callback: CallbackQuery):
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
         return await callback.answer()
-
     if admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
         return await callback.answer()
-
     if user_admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ в этой сетке</b>.")
@@ -631,12 +635,10 @@ async def admin_heir(callback: CallbackQuery):
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
         return await callback.answer()
-
     if admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
         return await callback.answer()
-
     if user_admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ в этой сетке</b>.")
@@ -683,12 +685,10 @@ async def admin_transfer(callback: CallbackQuery):
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
         return await callback.answer()
-
     if admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
         return await callback.answer()
-
     if user_admin is None:
         # Вывод
         await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ в этой сетке</b>.")
@@ -801,20 +801,19 @@ async def rmmes(callback: CallbackQuery):
 
 @rt.callback_query(F.data == "get_web")
 async def get_web(callback: CallbackQuery):
-    user_t = callback.from_user
-    user_tid = user_t.id
+    await on_every_message(callback=callback)
 
-    await db.mk_user(user=user_t)
+    # Получение данных из БД
+    user = await db.mk_user(user=callback.from_user)
+    web = await db.get_web_by_owner_tid(callback.from_user.id)
 
-    web = await db.get_web_by_owner_tid(user_tid)
-
-    if web is None:
-        await callback.message.edit_text("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
+    ## Проверка на наличие запрошенных данных в БД
+    if None in (user, web):
+        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
         return await callback.answer()
 
-    await callback.message.edit_text("Подождите, идёт загрузка...") # Вывод
-
-    # Формируем список чатов
+    # Вывод
+    ## Формирование списка чатов
     chats_tid = web['chats_tid']
     chats_tid_str = ""
     if not chats_tid:
@@ -823,8 +822,8 @@ async def get_web(callback: CallbackQuery):
         seq = 1
         for chat_tid in chats_tid:
             chat = await db.get_user_by_tid(chat_tid)
-            if chat is None:
-                chat_link = chat_tid
+            if chat is None: # Теоритически это невозможно. Добавляя чат в паутины, запись в БД обязана быть
+                chat_link = f"@{chat_tid}"
             else:
                 chat_link = chat['link']
             chats_tid_str += f"{seq}. <b>{chat_link}</b>"
@@ -833,18 +832,21 @@ async def get_web(callback: CallbackQuery):
             chats_tid_str += "\n"
             seq += 1
 
-    # Вывод
+    ## Итоговый вывод
     emoji = web['emoji'] or await rndemoji()
-    forename = web['forename']
+    if web['heir_tid']:
+        heir = await db.get_user_by_tid(web['heir_tid'])
+        heir_link = heir['link']
+    else:
+        heir_link = "Отсутствует"
+    descr = web['descr'] or "Описание отсутствует."
     date_reg = await parse_date(web['date_reg'])
-    web_id = web['web_id']
-    descr = web['descr']
-    descr = descr if descr else "Описание отсутствует."
 
     await callback.message.edit_text(
         text=(
-            f"{emoji} <b>{forename}</b>\n"
-            f"Дата создания: <b>{date_reg}</b> | ID: <b>#{web_id}</b>\n"
+            f"{emoji} <b>{web['forename']}</b> (#{web['web_id']})\n"
+            f"Владелец: <b>{user['link']}</b> | Наследник: <b>{heir_link}</b>\n"
+            f"Дата создания: <b>{date_reg}</b>\n"
             f"<blockquote>{descr}</blockquote>\n\n"
              "Чаты:\n"
             f"{chats_tid_str}"
@@ -892,9 +894,11 @@ async def accept_invite(callback: CallbackQuery):
 
 @rt.callback_query(F.data.startswith("about_"))
 async def about_web_id(callback: CallbackQuery):
-    web_id = callback.data.split("_")[-1]
-    web = await db.get_web(web_id)
+    await on_every_message(callback=callback)
 
+    web_id = callback.data.split("_")[-1]
+    # Получение данных из БД
+    web = await db.get_web(web_id)
     if web is None:
         return await callback.answer("Произошла либо непредвиденная ошибка, либо этой паутины более не существует.") # Вывод
 

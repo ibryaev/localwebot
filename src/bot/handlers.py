@@ -49,6 +49,7 @@ async def ping(message: Message):
 @rt.message(F.text == "🗂️ Мои паутины")
 async def get_web(message: Message):
     if message.chat.type != "private": return
+    await on_every_message(message=message)
 
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
@@ -59,8 +60,6 @@ async def get_web(message: Message):
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
     # Вывод
-    msg = await message.answer("Подождите, идёт загрузка...") # Пока формируется список чатов сетки
-
     ## Формирование списка чатов
     chats_tid = web['chats_tid']
     chats_tid_str = ""
@@ -90,9 +89,9 @@ async def get_web(message: Message):
     descr = web['descr'] or "Описание отсутствует."
     date_reg = await parse_date(web['date_reg'])
 
-    await msg.edit_text(
+    await message.answer(
         text=(
-            f"{emoji} <b>{web['forename']}</b> #{web['web_id']}\n"
+            f"{emoji} <b>{web['forename']}</b> (#{web['web_id']})\n"
             f"Владелец: <b>{user['link']}</b> | Наследник: <b>{heir_link}</b>\n"
             f"Дата создания: <b>{date_reg}</b>\n"
             f"<blockquote>{descr}</blockquote>\n\n"
@@ -110,13 +109,16 @@ async def get_web(message: Message):
 @rt.message(F.text[3:] == "Создать паутину")
 async def mk_web(message: Message):
     if message.chat.type != "private": return
+    await on_every_message(message=message)
 
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
+    if user is None:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     web = await db.get_web_by_owner_tid(message.from_user.id)
 
     ## Проверка на наличие всех нужных записей в БД
-    if None in (user, web):
+    if web is not None:
         return await message.answer("У Вас уже есть паутина.") # Вывод
 
     # Непосредственно создание паутины в БД
@@ -141,7 +143,7 @@ async def mk_web(message: Message):
 @rt.message(F.text == "➕ Добавить в чат")
 async def add_to_chat(message: Message):
     if message.chat.type != "private": return
-    await db.mk_user(user=message.from_user)
+    await on_every_message(message=message)
 
     # Вывод
     await message.answer(
@@ -171,8 +173,7 @@ async def commands_list(message: Message):
 @rt.message(F.text.casefold() == "паутина")
 async def get_chat(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(user=message.from_user)
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Получение данных из БД
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id
@@ -209,7 +210,7 @@ async def get_chat(message: Message):
 @rt.message(F.text.casefold() == "+паутина")
 async def add_chat(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
@@ -262,7 +263,7 @@ async def add_chat(message: Message):
 @rt.message(F.text.casefold() == "-паутина")
 async def remove_chat(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
@@ -306,8 +307,7 @@ async def remove_chat(message: Message):
 @rt.message(F.text.casefold() == "сделать админским")
 async def mk_admin_chat(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(user=message.from_user)
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Получение данных из БД
     chat = await db.get_chat(message.chat.id)
@@ -349,7 +349,7 @@ async def mk_admin_chat(message: Message):
 @rt.message(F.text.casefold().startswith("повысить"))
 async def up(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Получение данных из БД
     ## Создание/поиск отправителя в БД
@@ -448,7 +448,7 @@ async def up(message: Message):
 @rt.message(F.text.casefold().startswith("понизить"))
 async def down(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Получение данных из БД
     ## Создание/поиск отправителя в БД
@@ -541,7 +541,7 @@ async def down(message: Message):
 @rt.message(F.text.casefold().startswith("снять"))
 async def fire(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Получение данных из БД
     ## Создание/поиск отправителя в БД
@@ -655,7 +655,7 @@ async def gmute(message: Message):
     # Ктобы мог подумать, что так намного легче передвигаться по коду? Глазу есть за что цепляться.
     # TODO Пересмотреть весь код в файлах handers.py и callbacks.py
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
@@ -837,7 +837,7 @@ async def gmute(message: Message):
 @rt.message(F.text.casefold().startswith("глоразмут")) # Для тех, кто привык к Ирис боту
 async def gunmute(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
@@ -982,6 +982,7 @@ async def gunmute(message: Message):
 @rt.message(F.text.casefold().startswith(".репорт")) # Для тех, кто привык к Ирис боту
 async def report(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
+    await on_every_message(message=message)
 
     if not message.reply_to_message:
         return await message.reply("Жалобу нужно подать в ответ на сообщение.") # Вывод
@@ -1055,8 +1056,7 @@ async def report(message: Message):
 @rt.message(F.text.casefold().startswith("чаты"))
 async def chats_tid(message: Message):
     if message.chat.type not in ("group", "supergroup"): return
-    await db.mk_user(user=message.from_user)
-    await db.mk_user(chat=message.chat)
+    await on_every_message(message=message)
 
     # Получение данных из БД
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id, а после саму паутину
@@ -1112,7 +1112,7 @@ async def chats_tid(message: Message):
 @rt.message(CommandStart(ignore_case=True, deep_link=False))
 async def introduce(message: Message):
     if message.chat.type != "private": return
-    await db.mk_user(user=message.from_user)
+    await on_every_message(message=message)
 
     # Вывод
     emoji = await rndemoji()
@@ -1143,6 +1143,7 @@ async def introduce(message: Message):
 @rt.message(Command("cancel", ignore_case=True))
 async def cancel(message: Message, state: FSMContext) -> None:
     if message.chat.type != "private": return
+    await on_every_message(message=message)
 
     current_state = await state.get_state()
     if current_state is None:

@@ -1,4 +1,4 @@
-from aiogram.types import User
+from aiogram.types import User, Message, CallbackQuery
 from random import choice
 from datetime import datetime
 from babel.dates import format_datetime
@@ -117,3 +117,19 @@ async def grep_username(text: str, split_sep: str = " ", split_maxsplit: int = -
             return username
 
     return None
+
+async def on_every_message(message: Message = None, callback: CallbackQuery = None):
+    if bool(message) == bool(callback):
+        raise ValueError()
+
+    if message:
+        await db.mk_user(user=message.from_user)
+        if message.reply_to_message:
+            await db.mk_user(user=message.reply_to_message.from_user)
+        if message.chat.type in ("group", "supergroup"):
+            await db.mk_user(chat=message.chat)
+
+    elif callback:
+        await db.mk_user(user=callback.from_user)
+        if callback.message.chat.type in ("group", "supergroup"):
+            await db.mk_user(chat=callback.message.chat)
