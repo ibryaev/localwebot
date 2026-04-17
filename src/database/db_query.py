@@ -444,23 +444,19 @@ class Database():
             return await self.cur.fetchall()
         except Exception as e:
             print(f"error: database: get_web_admins(): {e}")
-            return []
+            return None
 
-    async def get_web_admins_tid(self, web_id: str) -> list[dict]:
+    async def get_web_admins_tid(self, web_id: str) -> list[int]:
         '''Получает список всех TID админов из данной паутины'''
         try:
-            await self.cur.execute("SELECT * FROM admins WHERE web_id = %s", (web_id,))
-            admins = await self.cur.fetchall()
-            if not admins:
-                return []
-
+            admins = await self.get_web_admins(web_id)
             admins_tid = []
             for admin in admins:
-                admins_tid = admins_tid.append(admin['admin_tid'])
+                admins_tid.append(admin['admin_tid'])
             return admins_tid
         except Exception as e:
-            print(f"error: database: get_web_admins(): {e}")
-            return []
+            print(f"error: database: get_web_admins_tid(): {e}")
+            return None
 
     async def upd_admin_post(self, admin_tid: int, web_id: str, post: str) -> bool:
         '''Обновляет должность админа в конкретной паутине'''
@@ -555,7 +551,7 @@ class Database():
             return False
 
     async def get_restrs_by_user_tid_in_web(self, user_tid: int, web_id: str) -> list[dict]:
-        '''Получает все наказания данного человека в конкретной паутине'''
+        '''Получает все наказания данного человека в данной паутине'''
         try:
             await self.cur.execute(
                 "SELECT * FROM restrs WHERE user_tid = %s AND web_id = %s",
@@ -564,10 +560,10 @@ class Database():
             return await self.cur.fetchall()
         except Exception as e:
             print(f"error: database: get_restrs_by_user_tid_in_web(): {e}")
-            return False
+            return None
 
     async def get_restrs_by_admin_tid_in_web(self, admin_tid: int, web_id: str) -> list[dict]:
-        '''Получает все наказания выданные данным админом в конкретной паутине'''
+        '''Получает все наказания выданные данным админом в данной паутине'''
         try:
             await self.cur.execute(
                 "SELECT * FROM restrs WHERE admin_tid = %s AND web_id = %s",
@@ -576,7 +572,7 @@ class Database():
             return await self.cur.fetchall()
         except Exception as e:
             print(f"error: database: get_restrs_by_admin_tid_in_web(): {e}")
-            return False
+            return None
 
     async def upd_restr_reason(self, restr_id: str, reason: str) -> bool:
         '''Изменяет причину наказания'''
@@ -631,22 +627,28 @@ class Database():
         message_tid_user_replyto = message_user.reply_to_message.message_id
         sender_tid = message_user.from_user.id
         target_tid = message_user.reply_to_message.from_user.id
-        reason = message_user.text.split(" ", 1)
+        reason = message_user.text.split("\n", 1)
         if len(reason) == 2:
-            reason = reason[-1]
+            reason = reason[1].strip()
         else:
-            reason = "Причина не указана."
+            reason = message_user.text.split(" ", 1)
+            if len(reason) == 2:
+                reason = reason[1].strip()
+            else:
+                reason = "Причина не указана."
 
         try:
             await self.cur.execute(
                 "INSERT INTO reports (report_id, web_id, chat_tid, message_tid_user, message_tid_user_replyto, message_tid_bot_admin, message_tid_bot_user, sender_tid, target_tid, reason) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
                 (report_id, web_id, chat_tid, message_tid_user, message_tid_user_replyto, message_tid_bot_admin, message_tid_bot_user, sender_tid, target_tid, reason)
             )
-            return await self.cur.fetchone()
+            report =  await self.cur.fetchone()
+            await self.conn.commit()
+            return report
         except Exception as e:
             print(f"error: database: mk_report(): {e}")
             await self.conn.rollback()
-            return False
+            return None
 
     async def get_report(self, report_id: str) -> dict:
         try:
@@ -654,7 +656,7 @@ class Database():
             return await self.cur.fetchone()
         except Exception as e:
             print(f"error: database: get_report(): {e}")
-            return False
+            return None
 
     async def rm_report(self, report_id: str) -> bool:
         '''Удаляет жалобу'''
