@@ -3,6 +3,7 @@ from asyncio import run
 
 from config import *
 import bot.schedulers as scheduler
+from bot.triggers import rt as rt_triggers
 from bot.handlers import rt as rt_handlers
 from bot.callbacks import rt as rt_callbacks
 
@@ -13,6 +14,7 @@ async def main() -> None:
 
     scheduler.check_webs_owner.start()
 
+    dp.include_router(rt_triggers)
     dp.include_router(rt_handlers)
     dp.include_router(rt_callbacks)
 
