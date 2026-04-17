@@ -18,7 +18,7 @@
 - [ ] Add report system <u>**(WIP)**</u>
   - [ ] Add special mark when reporting admin
   - [x] Gban
-  - [ ] Gmute
+  - [x] Gmute
   - [x] Delete msg
   - [x] Check report (close ticket)
 - [x] Add description for web                           ([d6e4dcd](https://github.com/ibryaev/localwebot/commit/d6e4dcd1204d113d583afdefdcd6955daa5548fd))
