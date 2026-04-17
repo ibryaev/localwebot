@@ -33,10 +33,10 @@ async def get_chat_owner(chat_tid: int) -> User:
 async def mklink(full_name: str, username: str) -> str:
     return f"<a href='https://t.me/{username}'>{full_name}</a>" if username else full_name
 
-async def parse_time(time_str: str, spectime: float = None) -> tuple[float, str]:
+async def parse_time(time_str: str, timestamp: float = None) -> tuple[float, str]:
     '''
     Конвертирует время из формата например "30 мин" в timestamp.  
-    Если указать ``spectime``, то функция вернёт ``spectime + time_str``. Иначе ``datime.now().timestamp() + time_str``
+    Если указать ``timestamp``, то функция вернёт ``timestamp + time_str``. Иначе ``datime.now().timestamp() + time_str``
     '''
     time_str = time_str.split(" ")
 
@@ -96,7 +96,19 @@ async def parse_time(time_str: str, spectime: float = None) -> tuple[float, str]
         case _:
             return None
 
-    return (spectime if spectime else datetime.now().timestamp()) + float(d * multiply), f"{d} {s}"
+    if timestamp is None:
+        timestamp = datetime.now().timestamp()
+
+    date = timestamp + float(d * multiply)
+    date_str = f"{d} {s}"
+
+    if date >= timestamp + (31_536_000.0 + 86_400.0):
+        date_str = "бессрочно"
+    elif date < timestamp + 30.0:
+        date = timestamp + 60.0
+        date_str = "1 минуту"
+
+    return date, date_str
 
 async def grep_username(text: str, split_sep: str = " ", split_maxsplit: int = -1) -> str:
     '''Парсит текст на начилие ОДНОГО Telegram @юзернейма'''
