@@ -697,7 +697,7 @@ async def gban(message: Message):
         text = message.text
     date_until = datetime.now().timestamp() + 604_800.0 # Если не указано время - по стандарту одна неделя
     date_until_str = "1 неделю"
-    target_quote = f"| \"{message.reply_to_message.text or "[ВЛОЖЕНИЕ]"}\"" if message.reply_to_message else ""
+    target_quote = f" | \"{message.reply_to_message.text or "[ВЛОЖЕНИЕ]"}\"" if message.reply_to_message else ""
     reason = f"Причина не указана.{target_quote}" # Если не указана причина - так и пишу
 
     ## Причина
@@ -728,9 +728,10 @@ async def gban(message: Message):
     restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason, date_until)
     if restr is None:
         return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
-    result = await db.rm_admin(target_tid, web_id) # Если целевой пользователь являлся админом, то снимаем его
-    if result is None:
-        await message.answer("Человек был забанен, но по неизвестной причине с него не удалось снять админские права. Сделайте это вручную.") # Вывод
+    if target_admin:
+        result = await db.rm_admin(target_tid, web_id) # Если целевой пользователь являлся админом, то снимаем его
+        if result is None:
+            await message.answer("Человек успешно забанен, но по неизвестной причине с него не удалось снять админские права. Сделайте это вручную.") # Вывод
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -1017,7 +1018,7 @@ async def gmute(message: Message):
                 chat_id=chat_tid,
                 user_id=target_tid,
                 permissions=ChatPermissions(
-                    can_send_message=False,
+                    can_send_messages=False,
                     can_send_audios=False,
                     can_send_documents=False,
                     can_send_photos=False,
@@ -1145,7 +1146,7 @@ async def gunmute(message: Message):
                 chat_id=chat_tid,
                 user_id=target_tid,
                 permissions=ChatPermissions(
-                    can_send_message=True,
+                    can_send_messages=True,
                     can_send_audios=True,
                     can_send_documents=True,
                     can_send_photos=True,
@@ -1350,8 +1351,8 @@ async def report(message: Message):
 
     await message_user.edit_text(
         text=(
-            f"❗️ Жалоба на {target['link']} отправлена\n"
-            f"🆔 <code>{target_tid}</code>\n"
+            f"❗️ Жалоба на {target['link']} отправлена (#{report['report_id']})\n"
+            f"🆔 <code>@{target_tid}</code>\n"
             f"🗣 Отправил {sender['link']}\n"
             f"<blockquote>{report['reason']}</blockquote>"
         ),
@@ -1359,8 +1360,8 @@ async def report(message: Message):
     )
     await message_admin.edit_text(
         text=(
-            f"❗️ Жалоба на {target['link']}\n"
-            f"🆔 <code>{target_tid}</code>\n"
+            f"❗️ Жалоба на {target['link']} (#{report['report_id']})\n"
+            f"🆔 <code>@{target_tid}</code>\n"
             f"🗣 Отправил {sender['link']}\n"
             f"<blockquote>{report['reason']}</blockquote>"
         ),
@@ -1472,6 +1473,9 @@ async def cancel(message: Message, state: FSMContext) -> None:
 async def main(message: Message):
     await on_every_message(message=message)
 
+    if message.text is None:
+        return
+
     msgtext = message.text
     msgtextcf = msgtext.casefold()
 
@@ -1514,7 +1518,7 @@ async def main(message: Message):
         elif msgtextcf.startswith("гкик") or msgtextcf.startswith("глокик"):
             return await gkick(message)
 
-        elif msgtextcf in ("жалоба", ".жалоба", "репорт", ".репорт"):
+        elif msgtextcf.startswith(("жалоба", ".жалоба", "репорт", ".репорт")):
             return await report(message)
         elif msgtextcf == "чаты":
             return await chats_tid(message)
