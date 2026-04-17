@@ -1173,6 +1173,123 @@ async def gunmute(message: Message):
         f"🛡️ Снял {sender_user['link']}"
     )
 
+# Гкик - Команда для глобального кика пользователя
+
+async def gkick(message: Message):
+    # Создание/поиск отправителя в БД
+    sender_user = await db.mk_user(user=message.from_user)
+
+    # Поиск получателя
+    target_user = {}
+    if message.reply_to_message is None:
+        # Если сообщение - не ответ
+        target_username = await grep_username(message.text.split("\n")[0]) # Попытка найти в тексте @юзернейм (grep_username())
+        if target_username is None:
+            # @юз не найден
+            return await message.reply("Нужно либо ответить на сообщение, либо дать @юзернейм.")  # Вывод
+        elif target_username.isdigit():
+            # Если найденный @юз является TID
+            target_user = await db.get_user_by_tid(int(target_username))
+        else:
+            # @юз найден
+            target_tid = await db.get_tid(target_username)
+            if target_tid is None:
+                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+            target_user = await db.get_user_by_tid(target_tid) # Получатель найден
+    else:
+        # Иначе тупо создаю пользователя в БД
+        target_user = await db.mk_user(user=message.reply_to_message.from_user)
+
+    # Проверка на наличие всех нужных записей
+    if None in (target_user, sender_user): # LOL      hoiv yv8ty gvgb0ujnu 9hb97yb         --- Серафим даун 4/14/26
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    sender_tid = sender_user['tid'] # TID отправителя
+    target_tid = target_user['tid'] # TID получателя
+
+    # Проверка корректности отправителя и получателя
+    if sender_tid == target_tid: return await message.reply("Нельзя взаимодействовать с самим собой.")
+    if target_tid == BOT_TID:    return await message.reply("Нельзя взаимодействовать с ботом.")
+
+    # Получение чата из таблиц users & chats
+    chat_chat = await db.get_chat(message.chat.id)
+    if chat_chat is None:
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+
+    # Получаю паутину
+    web = await db.get_web(chat_chat['web_id'])
+    if web is None:
+        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    chat_tid = message.chat.id # TID чата
+    web_id = web['web_id']     # ID паутины
+
+    # Проверка прав
+    # Проверка на то, что отправитель является админом
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if sender_admin is None:
+        # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
+        return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
+
+    # Проверка на то, что получатель является админом
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+    if target_admin:
+        # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
+        sender_admin_post = sender_admin['post']
+        target_admin_post = target_admin['post']
+
+        if target_admin_post in ("helper", "owner"):
+            return await message.reply(f"Нельзя наказать {post_str['helper']}а или {post_str['owner'][:-2]}ца.")                # Вывод
+        if target_admin_post == "admin" and post_strint[sender_admin_post] < 3:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['helper']}</b>)") # Вывод
+        if target_admin_post == "moder" and post_strint[sender_admin_post] < 2:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)")  # Вывод
+
+    # Парсинг сообщения: причина
+    try:
+        text = message.text.replace(f"@{target_username}", "").replace("  ", " ").strip() # Перед парсингом убираем из сообщения @юз получателя
+    except Exception:
+        # Если @юза и так нет
+        text = message.text
+    target_quote = f"| \"{message.reply_to_message.text or "[ВЛОЖЕНИЕ]"}\"" if message.reply_to_message else ""
+    reason = f"Причина не указана.{target_quote}" # Если не указана причина - так и пишу
+
+    ## Причина
+    text_rows = text.split("\n")
+    if len(text_rows) == 1:
+        # Причина не указана
+        pass
+    elif len(text_rows) == 2:
+        # Причина - весь второй абзац
+        reason = f"{text_rows[1]}{target_quote}"
+    else:
+        # Неккоректное колво абзацей
+        return await message.reply("Неккоректный ввод команды.\n<pre>гмут {число} {время}\n{Причина (опционально)}</pre>") # Вывод
+
+    # Непосредственное назначение наказания
+    ## Бан и мгновенный разбан во всех чатах паутины
+    chats_tid = web['chats_tid']
+    for chat_tid in chats_tid:
+        try:
+            await bot.ban_chat_member(
+                chat_id=chat_tid,
+                user_id=target_tid
+            )
+            await bot.unban_chat_member(
+                chat_id=chat_tid,
+                user_id=target_tid
+            )
+        except Exception: # Если бота нет в чате или нет прав
+            continue
+
+    # Вывод
+    await message.reply(
+        f"👟 {target_user['link']}, глобальный кик в паутине чатов <b>{web['forename']}</b>\n"
+        f"🆔 <code>@{target_tid}</code>\n"
+        f"🛡️ Выдал {sender_user['link']}\n"
+        f"<blockquote>{reason}</blockquote>"
+    )
+
 # # # # # # # # #
 #   Остальное   #
 # # # # # # # # #
@@ -1394,8 +1511,8 @@ async def main(message: Message):
             return await gmute(message)
         elif msgtextcf.startswith("гразмут") or msgtextcf.startswith("глоразмут"):
             return await gunmute(message)
-        # elif msgtextcf.startswith("гкик") or msgtextcf.startswith("глокик"):
-        #     return await gkick(message)
+        elif msgtextcf.startswith("гкик") or msgtextcf.startswith("глокик"):
+            return await gkick(message)
 
         elif msgtextcf in ("жалоба", ".жалоба", "репорт", ".репорт"):
             return await report(message)

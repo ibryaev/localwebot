@@ -26,7 +26,7 @@
 - [ ] Implement globals ban, mute & kick <u>**(WIP)**</u>
   - [x] Gmute ([e1ee1d2](https://github.com/ibryaev/localwebot/commit/e1ee1d23a5517521d7371e9133a9aab4945a7d62))
   - [x] Gban
-  - [ ] Gkick
+  - [X] Gkick
 - [x] Add ability to view web's chats list from chat from this web ([b8f8089](https://github.com/ibryaev/localwebot/commit/b8f8089c4fd785c5ef52b07b57d2b0950b3891cf))
 - [ ] ~~Add function for chats list formatting (Формируем список чатов)~~
 - [x] Restrict to report, (pro/de)mote & etc. actions with the bot ([76098b0](https://github.com/ibryaev/localwebot/commit/76098b0763ae27b309b769c4c18c6787bc4903a3))
