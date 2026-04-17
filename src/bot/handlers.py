@@ -11,11 +11,6 @@ import bot.keyboards as kb
 
 rt = Router(name="handlers")
 
-@rt.message(F.text.casefold() == "кинг")
-@rt.message(F.text.casefold() == "пинг")
-@rt.message(F.text.casefold() == "пиу")
-@rt.message(F.text.casefold() == "бот")
-@rt.message(F.text.casefold() == "пиф")
 async def ping(message: Message):
     '''
     ``бот`` ``кинг`` ``пинг`` ``пиу`` ``пиф``  
@@ -46,11 +41,7 @@ async def ping(message: Message):
 # Выводит список чатов, который входят в паутину, 
 # и inline-клавиатуру, с кнопками для настройки своей паутины
 
-@rt.message(F.text == "🗂️ Мои паутины")
 async def get_web(message: Message):
-    if message.chat.type != "private": return
-    await on_every_message(message=message)
-
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
     web = await db.get_web_by_owner_tid(message.from_user.id)
@@ -105,12 +96,7 @@ async def get_web(message: Message):
 # В качестве первончального названия паутины
 # выступает full_name создателя
 
-@rt.message(F.text[2:] == "Создать паутину")
-@rt.message(F.text[3:] == "Создать паутину")
 async def mk_web(message: Message):
-    if message.chat.type != "private": return
-    await on_every_message(message=message)
-
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
     if user is None:
@@ -140,11 +126,7 @@ async def mk_web(message: Message):
 # По сути, главная функция этой кнопки - быть наполнением,
 # просто чтобы меню красиво смотрелось
 
-@rt.message(F.text == "➕ Добавить в чат")
 async def add_to_chat(message: Message):
-    if message.chat.type != "private": return
-    await on_every_message(message=message)
-
     # Вывод
     await message.answer(
         text="➕ Добавляй бота в нужные чаты и пиши там команду <code>паутина</code>",
@@ -170,11 +152,7 @@ async def commands_list(message: Message):
 # Выводит карточку с данными паутины, к которой привязан текущий чат:
 # эмодзи, название, юзернейм владельца и наследника.
 
-@rt.message(F.text.casefold() == "паутина")
 async def get_chat(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
     # Получение данных из БД
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id
     chat = await db.get_chat(message.chat.id)
@@ -207,11 +185,7 @@ async def get_chat(message: Message):
 # Записывает чат в БД и привязывает к паутине пользователя.
 # Если команду вводит не владелец чата — отправляет предложение владельцу.
 
-@rt.message(F.text.casefold() == "+паутина")
-async def add_chat(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
+async def mk_chat(message: Message):
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
     chat_owner = await db.mk_user(user=await get_chat_owner(message.chat.id))
@@ -254,17 +228,13 @@ async def add_chat(message: Message):
                 chat_chat = await db.mk_chat(message.chat.id, web_chat_owner['web_id'], chat_owner['tid'])
                 if chat_chat is None:
                     return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
-                return await message.reply(f"✅ Чат <b>{message.chat.id}</b> успешно добавлен в паутину <b>{web_chat_owner['forename']}</b>!") # Вывод
+                return await message.reply(f"✅ Чат <b>{message.chat.title}</b> успешно добавлен в паутину <b>{web_chat_owner['forename']}</b>!") # Вывод
 
 # Удаление чата из паутины (-паутина)
 # Убирает привязку чата к текущей паутине в БД.
 # Совершить действие может либо владелец самого чата, либо владелец паутины.
 
-@rt.message(F.text.casefold() == "-паутина")
-async def remove_chat(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
+async def rm_chat(message: Message):
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
     chat_owner = await db.mk_user(user=await get_chat_owner(message.chat.id))
@@ -295,7 +265,7 @@ async def remove_chat(message: Message):
         result = await db.rm_chat(message.chat.id, web_id)
         if not result:
             return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
-        return await message.reply(f"🗑 Чат успешно удалён из паутины <b>{web['forename']}</b>.") # Вывод (успех)
+        return await message.reply(f"🗑 Чат <b>{message.chat.title}</b> успешно удалён из паутины <b>{web['forename']}</b>!") # Вывод (успех)
 
     else:
         return await message.reply("Исключить чат из паутины может только владелец этого чата, либо владелец самой паутины.") # Вывод (неуспех: недостаточно прав)
@@ -304,11 +274,7 @@ async def remove_chat(message: Message):
 # В этот чат будут приходить уведомления о жалобах (репортах) из всех чатов паутины.
 # Назначить админский чат может только владелец паутины.
 
-@rt.message(F.text.casefold() == "сделать админским")
 async def mk_admin_chat(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
     # Получение данных из БД
     chat = await db.get_chat(message.chat.id)
     if chat is None:
@@ -346,11 +312,7 @@ async def mk_admin_chat(message: Message):
 # Повышение админа через текстовую команду
 # Если человек не был админом - назначает модератором.
 
-@rt.message(F.text.casefold().startswith("повысить"))
 async def up(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
     # Получение данных из БД
     ## Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
@@ -445,11 +407,7 @@ async def up(message: Message):
 # Понижание админа через текстовую команду
 # Если должность модер - полностью снимает.
 
-@rt.message(F.text.casefold().startswith("понизить"))
 async def down(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
     # Получение данных из БД
     ## Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
@@ -538,11 +496,7 @@ async def down(message: Message):
 # Полное снятие админа с должности через текстовую команду
 # Прописать может только хелпер или владелец.
 
-@rt.message(F.text.casefold().startswith("снять"))
 async def fire(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
     # Получение данных из БД
     ## Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
@@ -643,11 +597,7 @@ async def fire(message: Message):
 
 # Гбан - Команда для глобального бана пользователя
 
-@rt.message(F.text.casefold().startswith("гбан"))
-@rt.message(F.text.casefold().startswith("глобан")) # Для тех, кто привык к Ирис боту
-async def gmute(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-
+async def gban(message: Message):
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
 
@@ -721,7 +671,7 @@ async def gmute(message: Message):
     # Проверка прав
     # Проверка на то, что отправитель является админом
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if sender_admin is None:
+    if sender_admin is None or post_strint[sender_admin['post']] < 2:
         # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
         return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
 
@@ -804,11 +754,7 @@ async def gmute(message: Message):
 
 # Гразбан - Команда для снятия глобального бана
 
-@rt.message(F.text.casefold().startswith("гразбан"))
-@rt.message(F.text.casefold().startswith("глоразбан")) # Для тех, кто привык к Ирис боту
-async def gunmute(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-
+async def gunban(message: Message):
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
     if sender_user is None:
@@ -870,14 +816,9 @@ async def gunmute(message: Message):
         return await message.reply("У этого пользователя нет активного глобального бана в этой паутине.")
 
     # Проверка прав
-    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if sender_admin is None:
-        return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
-
-    # Проверка прав
     # Проверка на то, что отправитель является админом
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if sender_admin is None:
+    if sender_admin is None or post_strint[sender_admin['post']] < 2:
         # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
         return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
 
@@ -922,8 +863,6 @@ async def gunmute(message: Message):
 
 # Гмут - Команда для глобального мута человека
 
-@rt.message(F.text.casefold().startswith("гмут"))
-@rt.message(F.text.casefold().startswith("гломут")) # Для тех, кто привык к Ирис боту
 async def gmute(message: Message):
     # 4/14/26: Я с нуля переписал команду глобального мута.
     # Я пересмотрел свой взгялд на то, как стоит писать код:
@@ -933,8 +872,6 @@ async def gmute(message: Message):
     # Теперь же я в целом пишу больше комментариев: даже в простейших местах.
     # Ктобы мог подумать, что так намного легче передвигаться по коду? Глазу есть за что цепляться.
     # TODO Пересмотреть весь код в файлах handers.py и callbacks.py
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
 
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
@@ -1112,12 +1049,7 @@ async def gmute(message: Message):
 
 # Гразмут - Команда для снятия глобального мута
 
-@rt.message(F.text.casefold().startswith("гразмут"))
-@rt.message(F.text.casefold().startswith("глоразмут")) # Для тех, кто привык к Ирис боту
 async def gunmute(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
     if sender_user is None:
@@ -1177,11 +1109,6 @@ async def gunmute(message: Message):
     if not target_restr:
         # Если искомое наказание не было найдено
         return await message.reply("У этого пользователя нет активного глобального мута в этой паутине.")
-
-    # Проверка прав
-    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if sender_admin is None:
-        return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
 
     # Проверка прав
     # Проверка на то, что отправитель является админом
@@ -1255,14 +1182,7 @@ async def gunmute(message: Message):
 # назначен админский чат, то жалоба отправится в адм. чат.
 # Работает только в ответ на сообщение, не принимая @юзернейм.
 
-@rt.message(F.text.casefold().startswith("жалоба"))
-@rt.message(F.text.casefold().startswith(".жалоба")) # Для тех, кто привык к Ирис боту
-@rt.message(F.text.casefold().startswith("репорт"))  # Для тех, кто привык к Ирис боту
-@rt.message(F.text.casefold().startswith(".репорт")) # Для тех, кто привык к Ирис боту
 async def report(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
     if not message.reply_to_message:
         return await message.reply("Жалобу нужно подать в ответ на сообщение.") # Вывод
 
@@ -1332,11 +1252,7 @@ async def report(message: Message):
 
 # 
 
-@rt.message(F.text.casefold().startswith("чаты"))
 async def chats_tid(message: Message):
-    if message.chat.type not in ("group", "supergroup"): return
-    await on_every_message(message=message)
-
     # Получение данных из БД
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id, а после саму паутину
     chat_chat = await db.get_chat(message.chat.id)
@@ -1426,7 +1342,65 @@ async def cancel(message: Message, state: FSMContext) -> None:
 
     current_state = await state.get_state()
     if current_state is None:
-        return await message.answer("У Вас нет активных действий.")
+        return await message.answer("У Вас нет активных действий.") # Вывод
 
     await state.clear()
     await message.answer("Активное действие отменено.") # Вывод
+
+#####
+#   #
+#####
+
+@rt.message()
+async def main(message: Message):
+    await on_every_message(message=message)
+
+    msgtext = message.text
+    msgtextcf = msgtext.casefold()
+
+    if msgtextcf in ("бот", "кинг", "пинг", "пиу", "пиф"):
+        return await ping(message)
+
+    elif message.chat.type == "private":
+        if msgtext == "🗂️ Мои паутины":
+            return await get_web(message)
+        elif msgtext[2:] == "Создать паутину" or message.text[3:] == "Создать паутину":
+            return await mk_web(message)
+        elif msgtext == "➕ Добавить в чат":
+            return await add_to_chat(message)
+
+    elif message.chat.type in ("group", "supergroup"):
+        if msgtextcf == "паутина":
+            return await get_chat(message) 
+        elif msgtextcf == "+паутина":
+            return await mk_chat(message)
+        elif msgtextcf == "-паутина":
+            return await rm_chat(message)
+        elif msgtextcf == "сделать админским":
+            return await mk_admin_chat(message)
+
+        elif msgtextcf.startswith("повысить"):
+            return await up(message)
+        elif msgtextcf.startswith("понизить"):
+            return await down(message)
+        elif msgtextcf.startswith("снять"):
+            return await fire(message)
+
+        elif msgtextcf.startswith("гбан") or msgtextcf.startswith("глобан"):
+            return await gban(message)
+        elif msgtextcf.startswith("гразбан") or msgtextcf.startswith("глоразбан"):
+            return await gunban(message)
+        elif msgtextcf.startswith("гмут") or msgtextcf.startswith("гломут"):
+            return await gmute(message)
+        elif msgtextcf.startswith("гразмут") or msgtextcf.startswith("глоразмут"):
+            return await gunmute(message)
+        # elif msgtextcf.startswith("гкик") or msgtextcf.startswith("глокик"):
+        #     return await gkick(message)
+
+        elif msgtextcf in ("жалоба", ".жалоба", "репорт", ".репорт"):
+            return await report(message)
+        elif msgtextcf == "чаты":
+            return await chats_tid(message)
+
+    else:
+        return

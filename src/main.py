@@ -15,8 +15,8 @@ async def main() -> None:
     scheduler.check_webs_owner.start()
 
     dp.include_router(rt_triggers)
-    dp.include_router(rt_handlers)
     dp.include_router(rt_callbacks)
+    dp.include_router(rt_handlers)
 
     print(1)
     await dp.start_polling(bot)
