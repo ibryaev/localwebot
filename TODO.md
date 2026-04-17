@@ -25,7 +25,7 @@
 - [x] Implement ability to add admin in web             ([65c2216](https://github.com/ibryaev/localwebot/commit/65c2216e78ee6218dccf0f4a5f2dc27e4decfdea))
 - [ ] Implement globals ban, mute & kick <u>**(WIP)**</u>
   - [x] Gmute ([e1ee1d2](https://github.com/ibryaev/localwebot/commit/e1ee1d23a5517521d7371e9133a9aab4945a7d62))
-  - [ ] Gban
+  - [x] Gban
   - [ ] Gkick
 - [x] Add ability to view web's chats list from chat from this web ([b8f8089](https://github.com/ibryaev/localwebot/commit/b8f8089c4fd785c5ef52b07b57d2b0950b3891cf))
 - [ ] ~~Add function for chats list formatting (Формируем список чатов)~~
