@@ -45,6 +45,8 @@ async def rename(callback: CallbackQuery, state: FSMContext):
 @rt.message(WebRename.forename)
 async def rename_msg_forename(message: Message, state: FSMContext):
     forename = replace_emoji(message.text, "")
+    if not forename:
+        return await message.answer("Имя паутины не должно быть пустым. Попробуйте снова.")
     if len(forename) > 64:
         return await message.answer(
             # Вывод
@@ -732,10 +734,137 @@ async def admin_transfer(callback: CallbackQuery):
 #   kb.report_user() и kb.report_admin()    #
 #############################################
 
+# 
+
+@rt.callback_query(F.data.startswith("ban_"))
+async def report_ban(callback: CallbackQuery):
+    report_id = callback.data.split("_")[-1]
+    report = await db.get_report(report_id)
+
+    # Создание/поиск отправителя в БД
+    sender_user = await db.mk_user(user=callback.from_user)
+
+    # Поиск получателя
+    target_tid = report['target_tid']
+    target_user = await db.get_user_by_tid(target_tid) # Жалобы подаются только на сообщения, так что цель гарантированно есть в БД
+
+    # Проверка на наличие всех нужных записей
+    if None in (target_user, sender_user):
+        return await callback.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    sender_tid = sender_user['tid'] # TID отправителя
+
+    # Если человек нажимает на кнопку наказания на жалобе, отправленной на него же, то оскорбляем его жирную мамашу
+    if sender_tid == target_tid:
+        return await callback.answer(
+            # Вывод
+            text=choice([
+                "Я слышал твоя мама села на айфон и он стал айпадом",
+                "Твоя мамка такая жирная, что у неё есть собственный почтовый индекс",
+                "Если долго смотреть на небо, то можно увидеть созвездие твоей жирной мамаши",
+                "Твоя мама настолько жирная, что когда она нагибается все думают что это вход в метро",
+                "Твоя мама нормальная и вовсе не жирная",
+                "твоя мама настолько жирная что ей нужно искать свою задницу в справочнике"
+            ]),
+            show_alert=True
+        )
+
+    # Получение чата из таблиц users & chats
+    chat_chat = await db.get_chat(callback.message.chat.id) # Жалобы подаются только в чатах, которые состоят в паутине, так что цель гарантированно есть в БД
+    if chat_chat is None:
+        return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
+
+    # Получаю паутину
+    web = await db.get_web(chat_chat['web_id'])
+    if web is None:
+        return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
+
+    chat_tid = callback.message.chat.id # TID чата
+    web_id = web['web_id']              # ID паутины
+
+    # Проверка, вдруг у получателя уже есть активное наказание
+    target_restr = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
+    for restr in target_restr:
+        if restr['restr'] != "ban":
+            continue
+
+        # Если искомое наказание было найдено
+        # Вывод
+        # text callback.answer() должен быть не более 200 символов.
+        admin_user = await db.get_user_by_tid(restr['admin_tid'])
+        admin_mention = admin_user['full_name'] if len(admin_user['full_name']) <= 16 else admin_user['full_name'][:13] + "..." # 16 символов под full_name админа
+        date_until = await parse_date(restr['date_until'], "HH:mm d MMMM") if restr['date_until'] else "бессрочно" # 12 символов
+        if date_until:
+            date_until = date_until if len(date_until) <= 12 else date_until[:9] + "..."
+        reason = restr['reason'] if len(restr['reason']) <= 145 else restr['reason'][:142] + "..." # Базовый текст + admin_mention + date_until = 55 символов. На причину остаётся 145 символов
+        return await callback.answer(
+            text=(
+                f"Уже забанен. Выдал {admin_mention} до {date_until}. \"{reason}\""
+            ),
+            show_alert=True
+        )
+
+    # Проверка прав
+    # Проверка на то, что отправитель является админом
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if sender_admin is None or post_strint[sender_admin['post']] < 2:
+        # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
+        return await callback.answer("Недостаточно прав") # Вывод
+
+    # Проверка на то, что получатель является админом
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+    if target_admin:
+        # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
+        sender_admin_post = sender_admin['post']
+        target_admin_post = target_admin['post']
+
+        if target_admin_post in ("helper", "owner"):
+            return await callback.answer(f"Нельзя наказать {post_str['helper']}а или {post_str['owner'][:-2]}ца.") # Вывод
+        if target_admin_post == "admin" and post_strint[sender_admin_post] < 3:
+            return await callback.answer("Недостаточно прав")  # Вывод
+        if target_admin_post == "moder" and post_strint[sender_admin_post] < 2:
+            return await callback.answer("Недостаточно прав")  # Вывод
+
+    # Устаналивание причины
+    reason = f"Жалоба  #{report['report_id']}: \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""
+
+    # Непосредственное назначение наказания
+    ## Запись в БД
+    restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason)
+    if restr is None:
+        return await callback.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    if target_admin:
+        result = await db.rm_admin(target_tid, web_id) # Если целевой пользователь являлся админом, то снимаем его
+        if result is None:
+            # Вывод
+            await callback.answer(
+                text="Человек успешно забанен, но по неизвестной причине с него не удалось снять админские права. Сделайте это вручную.",
+                show_alert=True
+            )
+
+    ## Назначение в Телеграме
+    chats_tid = web['chats_tid']
+    for chat_tid in chats_tid:
+        try:
+            await bot.ban_chat_member(
+                chat_id=chat_tid,
+                user_id=target_tid
+            )
+        except Exception: # Если бота нет в чате или нет прав
+            continue
+
+    # Вывод
+    await callback.message.reply(
+        f"⛔ {target_user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> на <b>бессрочно</b>\n"
+        f"🆔 <code>@{target_tid}</code>\n"
+        f"🛡️ Выдал {sender_user['link']}\n"
+        f"<blockquote>{reason}</blockquote>"
+    )
+
 # Отмечает жалобу проверенной
 
 @rt.callback_query(F.data.startswith("check_"))
-async def check(callback: CallbackQuery):
+async def report_check(callback: CallbackQuery):
     report_id = callback.data.split("_")[-1]
     report = await db.get_report(report_id)
     sender_tid = report['sender_tid']
@@ -749,7 +878,7 @@ async def check(callback: CallbackQuery):
     if callback.message.chat.id != web_admin_chat_tid:
         admins_tid = await db.get_web_admins_tid(web_id)
         if callback.from_user.id not in admins_tid:
-            return await callback.answer("У Вас недостаточно прав.") # Вывод
+            return await callback.answer("У Вас недостаточно прав") # Вывод
 
     result = await db.rm_report(report_id)
     if not result:
@@ -764,8 +893,8 @@ async def check(callback: CallbackQuery):
         chat_id=web_admin_chat_tid,
         message_id=report['message_tid_bot_admin'],
         text=(
-            f"✅ Жалоба на {target['link']} проверена\n"
-            f"🆔 <code>{target_tid}</code>\n"
+            f"✅ Жалоба на {target['link']} проверена (#({report['report_id']}))\n"
+            f"🆔 <code>@{target_tid}</code>\n"
             f"🗣 Отправил {sender['link']}\n"
             f"🛡️ Проверил {await mklink(callback.from_user.full_name, callback.from_user.username)}\n"
             f"<blockquote>{report['reason']}</blockquote>"
@@ -774,16 +903,22 @@ async def check(callback: CallbackQuery):
     await bot.edit_message_text(
         chat_id=report['chat_tid'],
         message_id=report['message_tid_bot_user'],
-        text="✅ Жалоба проверена"
+        text=f"✅ Жалоба проверена (#{report['report_id']})"
     )
     await callback.answer()
 
-#
+# Удаляет сообщение, на которое была подана жалоба
 
 @rt.callback_query(F.data.startswith("rmmes_"))
-async def rmmes(callback: CallbackQuery):
+async def report_rmmes(callback: CallbackQuery):
     report_id = callback.data.split("_")[-1]
     report = await db.get_report(report_id)
+    web_id = report['web_id']
+
+    admins_tid = await db.get_web_admins_tid(web_id)
+    if callback.from_user.id not in admins_tid:
+        return await callback.answer("У Вас недостаточно прав") # Вывод
+
     try:
         await bot.delete_message(
             chat_id=report['chat_tid'],

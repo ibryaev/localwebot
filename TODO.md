@@ -6,7 +6,7 @@
 - [ ] ~~Limit three chats for one web~~
 - [x] Add settings for web in "my web"-menu             ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
   - [x] Finish panel with admins list                   ([48978ef](https://github.com/ibryaev/localwebot/commit/48978ef463c0bbad286b7743106d86615b45c7bb))
-    - [ ] Add ability to view admins list from admin chat
+    - [ ] Add ability to view admins list from admin chat <u>**(!)**</u>
     - [x] Add abilty to manage admins list by text commands (in groups) ([65c2216](https://github.com/ibryaev/localwebot/commit/65c2216e78ee6218dccf0f4a5f2dc27e4decfdea))
 - [x] Trigger when bot added in chat                    ([dc6e6a0](https://github.com/ibryaev/localwebot/commit/dc6e6a01ebb56c94711c8fae08cda0d3269ceac0))
 - [x] Implement transfer web ownership                  ([b1c9115](https://github.com/ibryaev/localwebot/commit/b1c9115c6e0b307dc31a061d9cefd7f11cdef0b8))
@@ -17,13 +17,17 @@
 - [x] Add admin chat connection to web                  ([fca81ce](https://github.com/ibryaev/localwebot/commit/fca81ce95d6a5ca7c8f96a42b1a7744759e6465f))
 - [ ] Add report system <u>**(WIP)**</u>
   - [ ] Add special mark when reporting admin
+  - [x] Gban
+  - [ ] Gmute
+  - [x] Delete msg
+  - [x] Check report (close ticket)
 - [x] Add description for web                           ([d6e4dcd](https://github.com/ibryaev/localwebot/commit/d6e4dcd1204d113d583afdefdcd6955daa5548fd))
 - [ ] Add schedulers:
   - [ ] Add scheduler for restrictions (`restrs` table): bans & mutes <u>**(!)**</u>
   - [x] Add scheduler for webs, where creator's account got deleted ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
 - [x] Store more profiles info in `users` table in db   ([b6eea9a](https://github.com/ibryaev/localwebot/commit/b6eea9a3ec8e9adafdf398fd91c41e38ab278fb4))
 - [x] Implement ability to add admin in web             ([65c2216](https://github.com/ibryaev/localwebot/commit/65c2216e78ee6218dccf0f4a5f2dc27e4decfdea))
-- [ ] Implement globals ban, mute & kick <u>**(WIP)**</u>
+- [x] Implement globals ban, mute & kick
   - [x] Gmute ([e1ee1d2](https://github.com/ibryaev/localwebot/commit/e1ee1d23a5517521d7371e9133a9aab4945a7d62))
   - [x] Gban
   - [X] Gkick
