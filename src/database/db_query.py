@@ -516,13 +516,15 @@ class Database():
         '''Создает запись о бане/муте в конкретной паутине'''
         if restr not in ("ban", "mute"):
             return None
+        if date_until:
+            date_until = datetime.fromtimestamp(date_until)
 
         try:
             restr_id = await self.mkid("restrs")
 
             await self.cur.execute(
                 "INSERT INTO restrs (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
-                (restr_id, web_id, user_tid, restr, admin_tid, reason, datetime.fromtimestamp(date_until))
+                (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until)
             )
             restr = await self.cur.fetchone()
             await self.conn.commit()
