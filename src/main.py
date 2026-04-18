@@ -13,6 +13,7 @@ async def main() -> None:
     await db.connect()
 
     scheduler.check_webs_owner.start()
+    scheduler.check_active_restrs.start()
 
     dp.include_router(rt_triggers)
     dp.include_router(rt_callbacks)

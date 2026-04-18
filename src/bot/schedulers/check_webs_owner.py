@@ -92,4 +92,4 @@ async def main():
         print(f"error: schedulers: check_webs_owner.py: {e}")
 
 check_webs_owner = AsyncIOScheduler()
-check_webs_owner.add_job(main, "interval", seconds=20)
+check_webs_owner.add_job(main, "interval", hours=24)

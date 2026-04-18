@@ -22,7 +22,7 @@
   - [x] Check report (close ticket)
 - [x] Add description for web                           ([d6e4dcd](https://github.com/ibryaev/localwebot/commit/d6e4dcd1204d113d583afdefdcd6955daa5548fd))
 - [ ] Add schedulers:
-  - [ ] Add scheduler for restrictions (`restrs` table): bans & mutes <u>**(WIP)**</u>
+  - [x] Add scheduler for restrictions (`restrs` table): bans & mutes <u>**(WIP)**</u>
   - [x] Add scheduler for webs, where creator's account got deleted ([beac3d6](https://github.com/ibryaev/localwebot/commit/beac3d684c9a61b0c2d0a17f1e0ce1887c252742))
 - [x] Store more profiles info in `users` table in db   ([b6eea9a](https://github.com/ibryaev/localwebot/commit/b6eea9a3ec8e9adafdf398fd91c41e38ab278fb4))
 - [x] Implement ability to add admin in web             ([65c2216](https://github.com/ibryaev/localwebot/commit/65c2216e78ee6218dccf0f4a5f2dc27e4decfdea))
@@ -34,4 +34,4 @@
 - [ ] ~~Add function for chats list formatting (Формируем список чатов)~~
 - [x] Restrict to report, (pro/de)mote & etc. actions with the bot ([76098b0](https://github.com/ibryaev/localwebot/commit/76098b0763ae27b309b769c4c18c6787bc4903a3))
 - [ ] Add link to admin's message when restricting user 
-- [x] Add ability to view admins list from chat
+- [x] Add ability to view admins list from chat                    ([010066c](https://github.com/ibryaev/localwebot/commit/010066c533488a16f0e415966be5c30f9a34d74e))
