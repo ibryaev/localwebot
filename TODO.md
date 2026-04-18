@@ -38,10 +38,11 @@
 
 #### Public beta-test starts here - 4/18/26
 
-- [x] Add more comments into [handlers.py][src/bot/handlers.py]
+- [x] Add more comments into [handlers.py][src/bot/handlers.py]                          ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
 - [ ] Implement global warn (warns system)
 - [ ] Add more info in [README.md](README.md) like project's files structure schema
 - [ ] Make `commands_list()` for handlers ("📚 Команды" command, from `main_menu()`-keyboard) <u>**(!)**</u>
-- [x] Restrict to promote banned user
-- [x] Replace `.answer()` for group chat commands with `.reply()`
-- [x] Restrict restricted user when he joined the chat in the web where he is restricted
+- [x] Restrict to promote banned user                                                    ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
+- [x] Replace `.answer()` for group chat commands with `.reply()`                        ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
+- [x] Restrict restricted user when he joined the chat in the web where he is restricted ([4206fd1](https://github.com/ibryaev/localwebot/commit/4206fd1976c0839c29bcdd302f22fe071adfff5b))
+- [ ] Add from-chat name in the report message sended in the admin chat
