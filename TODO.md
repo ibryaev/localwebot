@@ -44,3 +44,4 @@
 - [ ] Make `commands_list()` for handlers ("📚 Команды" command, from `main_menu()`-keyboard) <u>**(!)**</u>
 - [x] Restrict to promote banned user
 - [x] Replace `.answer()` for group chat commands with `.reply()`
+- [x] Restrict restricted user when he joined the chat in the web where he is restricted
