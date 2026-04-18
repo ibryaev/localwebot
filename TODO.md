@@ -38,6 +38,9 @@
 
 #### Public beta-test starts here - 4/18/26
 
-- [ ] Add more comments into code
+- [x] Add more comments into [handlers.py][src/bot/handlers.py]
 - [ ] Implement global warn (warns system)
 - [ ] Add more info in [README.md](README.md) like project's files structure schema
+- [ ] Make `commands_list()` for handlers ("📚 Команды" command, from `main_menu()`-keyboard) <u>**(!)**</u>
+- [x] Restrict to promote banned user
+- [x] Replace `.answer()` for group chat commands with `.reply()`

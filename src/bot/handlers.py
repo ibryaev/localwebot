@@ -11,23 +11,23 @@ import bot.keyboards as kb
 
 rt = Router(name="handlers")
 
+# Команды, для проверки скорости ответа бота
+
 async def ping(message: Message):
-    '''
-    ``бот`` ``кинг`` ``пинг`` ``пиу`` ``пиф``  
-    Команды, для проверки скорости ответа бота
-    '''
     reply = ""
     match message.text.casefold():
         case "бот":
             reply = "✅ На месте"
         case "кинг":
-            reply = "Конг"
+            reply = "КОНГ"
         case "пинг":
-            reply = "Понг"
+            reply = "ПОНГ"
         case "пиу":
-            reply = "Пау"
+            reply = "ПАУ"
         case "пиф":
-            reply = "Паф"
+            reply = "ПАФ"
+        case "пук":
+            reply = "Срёньк"
 
     await message.reply(reply) # Вывод
 
@@ -129,7 +129,7 @@ async def mk_web(message: Message):
 async def add_to_chat(message: Message):
     # Вывод
     await message.answer(
-        text="➕ Добавляй бота в нужные чаты и пиши там команду <code>паутина</code>",
+        text="➕ Добавляй бота в нужные чаты и пиши там команду <code>+паутина</code>",
         reply_markup=await kb.add_to_chat()
     )
 
@@ -157,7 +157,7 @@ async def get_chat(message: Message):
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     ## Непосредственное получение инфы о паутине
     web = await db.get_web(chat['web_id'])
@@ -191,7 +191,7 @@ async def mk_chat(message: Message):
     chat_owner = await db.mk_user(user=await get_chat_owner(message.chat.id))
     ## Проверка на наличие запрошенных данных в БД
     if None in (user, chat_owner):
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     await db.upd_chat_owner(message.chat.id, chat_owner['tid'])
     chat_chat = await db.get_chat(message.chat.id)
     web_chat_owner = await db.get_web_by_owner_tid(chat_owner['tid'])
@@ -215,7 +215,7 @@ async def mk_chat(message: Message):
                 # Иначе - предложение вступить в его паутину
                 return await message.reply(
                     # Вывод
-                    text=f"{chat_owner['link']}, этот пользователь предлагает Вам включить свой чат в <b>его</b> паутину.",
+                    text=f"{chat_owner['link']}, этот пользователь предлагает включить Ваш чат в его паутину чатов.",
                     reply_markup=await kb.accept_invite_web(user_tid)
                 )
 
@@ -227,7 +227,7 @@ async def mk_chat(message: Message):
             else:
                 chat_chat = await db.mk_chat(message.chat.id, web_chat_owner['web_id'], chat_owner['tid'])
                 if chat_chat is None:
-                    return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+                    return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
                 return await message.reply(f"✅ Чат <b>{message.chat.title}</b> успешно добавлен в паутину <b>{web_chat_owner['forename']}</b>!") # Вывод
 
 # Удаление чата из паутины (-паутина)
@@ -240,7 +240,7 @@ async def rm_chat(message: Message):
     chat_owner = await db.mk_user(user=await get_chat_owner(message.chat.id))
     ## Проверка на наличие запрошенных данных в БД
     if None in (user, chat_owner):
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     await db.upd_chat_owner(message.chat.id, chat_owner['tid'])
     chat_chat = await db.get_chat(message.chat.id)
     
@@ -254,7 +254,7 @@ async def rm_chat(message: Message):
     web = await db.get_web(web_id)
     
     if web is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     user_tid = user['tid'] # TID прописавшего команду
 
@@ -264,7 +264,7 @@ async def rm_chat(message: Message):
         ## Непосредственное удаление из БД
         result = await db.rm_chat(message.chat.id, web_id)
         if not result:
-            return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+            return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
         return await message.reply(f"🗑 Чат <b>{message.chat.title}</b> успешно удалён из паутины <b>{web['forename']}</b>!") # Вывод (успех)
 
     else:
@@ -278,7 +278,7 @@ async def mk_admin_chat(message: Message):
     # Получение данных из БД
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     ## Получаю паутину
     web = await db.get_web(chat['web_id'])
@@ -296,7 +296,7 @@ async def mk_admin_chat(message: Message):
     if message.from_user.id != web_owner_tid:
         # Если команду прописал не владелец паутины
         web_owner = await db.get_user_by_tid(web_owner_tid)
-        return await message.answer(f"Только владелец паутины ({web_owner['link']}) может назначать админский чат.") # Вывод
+        return await message.reply(f"Только владелец паутины ({web_owner['link']}) может назначать админский чат.") # Вывод
 
     result = await db.upd_web_admin_chat_tid(web['web_id'], chat_tid)
     if not result:
@@ -309,7 +309,7 @@ async def mk_admin_chat(message: Message):
 #   через текстовые команды     #
 # # # # # # # # # # # # # # # # #
 
-# Повышение админа через текстовую команду
+# Повышение админа через текстовую команду (повысить)
 # Если человек не был админом - назначает модератором.
 
 async def up(message: Message):
@@ -332,7 +332,7 @@ async def up(message: Message):
             # @юз найден
             target_tid = await db.get_tid(target_username)
             if target_tid is None:
-                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
             target_user = await db.get_user_by_tid(target_tid) # Получатель найден
     else:
         # Иначе тупо создаю пользователя в БД
@@ -340,7 +340,7 @@ async def up(message: Message):
 
     ## Проверка на наличие запрошенных данных в БД
     if None in (target_user, sender_user):
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -352,7 +352,7 @@ async def up(message: Message):
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
     
     web_id = chat['web_id'] # ID паутины, где производится действие
 
@@ -365,6 +365,11 @@ async def up(message: Message):
         # Только хелперы и владелец могут сделать это
         post_name = post_str[sender_admin['post']] if sender_admin else post_str["user"]
         return await message.reply(f"Недостаточно прав (<b>{post_name}</b>/<b>{post_str['helper']}</b>)") # Вывод
+
+    target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
+    if target_restrs is not None:
+        for restr in target_restrs:
+            if restr['restr'] == "ban": return await message.reply("Этот пользователь забанен.") # Вывод
 
     # Если target не админ, то делаю его модером
     if target_admin is None:
@@ -404,7 +409,7 @@ async def up(message: Message):
 
     return await message.reply(f"⬆️ {target_user['link']} повышен до <b>{post_str[new_post]}а</b>!") # Вывод
 
-# Понижание админа через текстовую команду
+# Понижание админа через текстовую команду (понизить)
 # Если должность модер - полностью снимает.
 
 async def down(message: Message):
@@ -427,7 +432,7 @@ async def down(message: Message):
             # @юз найден
             target_tid = await db.get_tid(target_username)
             if target_tid is None:
-                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
             target_user = await db.get_user_by_tid(target_tid) # Получатель найден
     else:
         # Иначе тупо создаю пользователя в БД
@@ -435,7 +440,7 @@ async def down(message: Message):
 
     ## Проверка на наличие запрошенных данных в БД
     if None in (target_user, sender_user):
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -447,7 +452,7 @@ async def down(message: Message):
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
     
     web_id = chat['web_id'] # ID паутины, где производится действие
 
@@ -493,7 +498,7 @@ async def down(message: Message):
 
     return await message.reply(f"⬇️ {target_user['link']} понижен до <b>{post_str[new_post]}а</b>!") # Вывод
 
-# Полное снятие админа с должности через текстовую команду
+# Полное снятие админа с должности через текстовую команду (снять)
 # Прописать может только хелпер или владелец.
 
 async def fire(message: Message):
@@ -516,7 +521,7 @@ async def fire(message: Message):
             # @юз найден
             target_tid = await db.get_tid(target_username)
             if target_tid is None:
-                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
             target_user = await db.get_user_by_tid(target_tid) # Получатель найден
     else:
         # Иначе тупо создаю пользователя в БД
@@ -524,7 +529,7 @@ async def fire(message: Message):
 
     ## Проверка на наличие запрошенных данных в БД
     if None in (target_user, sender_user):
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -536,7 +541,7 @@ async def fire(message: Message):
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id, а после саму паутину
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
     
     web_id = chat['web_id'] # ID паутины, где производится действие
 
@@ -595,7 +600,8 @@ async def fire(message: Message):
 #   Гмут, гбан, гкик    #
 # # # # # # # # # # # # #
 
-# Гбан - Команда для глобального бана пользователя
+# Глобальный бан ("гбан", "глбан", "глобан")
+# Админ может загбанить модера, хелпер админа.
 
 async def gban(message: Message):
     # Создание/поиск отправителя в БД
@@ -616,7 +622,7 @@ async def gban(message: Message):
             # @юз найден
             target_tid = await db.get_tid(target_username)
             if target_tid is None:
-                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
             target_user = await db.get_user_by_tid(target_tid) # Получатель найден
     else:
         # Иначе тупо создаю пользователя в БД
@@ -624,7 +630,7 @@ async def gban(message: Message):
 
     # Проверка на наличие всех нужных записей
     if None in (target_user, sender_user): # LOL      hoiv yv8ty gvgb0ujnu 9hb97yb         --- Серафим даун 4/14/26
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -636,12 +642,12 @@ async def gban(message: Message):
     # Получение чата из таблиц users & chats
     chat_chat = await db.get_chat(message.chat.id)
     if chat_chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     # Получаю паутину
     web = await db.get_web(chat_chat['web_id'])
     if web is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     chat_tid = message.chat.id # TID чата
     web_id = web['web_id']     # ID паутины
@@ -727,11 +733,11 @@ async def gban(message: Message):
     ## Запись в БД
     restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason, date_until)
     if restr is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     if target_admin:
         result = await db.rm_admin(target_tid, web_id) # Если целевой пользователь являлся админом, то снимаем его
         if result is None:
-            await message.answer("Человек успешно забанен, но по неизвестной причине с него не удалось снять админские права. Сделайте это вручную.") # Вывод
+            await message.reply("Человек успешно забанен, но по неизвестной причине с него не удалось снять админские права. Сделайте это вручную.") # Вывод
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -753,13 +759,13 @@ async def gban(message: Message):
         f"<blockquote>{reason}</blockquote>"
     )
 
-# Гразбан - Команда для снятия глобального бана
+# Глобальный разбан ("гразбан", "глразмут", "глоразбан")
 
 async def gunban(message: Message):
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
     if sender_user is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Поиск получателя
     target_user = {}
@@ -776,13 +782,13 @@ async def gunban(message: Message):
             # @юз найден
             target_tid = await db.get_tid(target_username)
             if target_tid is None:
-                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
             target_user = await db.get_user_by_tid(target_tid) # Получатель найден
     else:
         # Иначе тупо создаю пользователя в БД
         target_user = await db.mk_user(user=message.reply_to_message.from_user)
     if target_user is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -794,12 +800,12 @@ async def gunban(message: Message):
     # Получение чата из таблиц users & chats
     chat_chat = await db.get_chat(message.chat.id)
     if chat_chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     # Получаю паутину
     web = await db.get_web(chat_chat['web_id'])
     if web is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     chat_tid = message.chat.id # TID чата
     web_id = web['web_id']     # ID паутины
@@ -841,7 +847,7 @@ async def gunban(message: Message):
     ## Удаление записи из БД
     result = await db.rm_restr(target_restr['restr_id'])
     if result is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -862,7 +868,9 @@ async def gunban(message: Message):
         f"🛡️ Снял {sender_user['link']}"
     )
 
-# Гмут - Команда для глобального мута человека
+# Глобальный мут ("гмут", "глмут", "гломут")
+# Запрещает все права пользователю во всех чатах паутины, ВКЛЮЧАЯ СОЗДАНИЕ ОПРОСОВ.
+# Админ может загмутить модера, хелпер админа.
 
 async def gmute(message: Message):
     # 4/14/26: Я с нуля переписал команду глобального мута.
@@ -892,7 +900,7 @@ async def gmute(message: Message):
             # @юз найден
             target_tid = await db.get_tid(target_username)
             if target_tid is None:
-                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
             target_user = await db.get_user_by_tid(target_tid) # Получатель найден
     else:
         # Иначе тупо создаю пользователя в БД
@@ -900,7 +908,7 @@ async def gmute(message: Message):
 
     # Проверка на наличие всех нужных записей
     if None in (target_user, sender_user): # LOL      hoiv yv8ty gvgb0ujnu 9hb97yb         --- Серафим даун 4/14/26
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -917,12 +925,12 @@ async def gmute(message: Message):
     # Получение чата из таблиц users & chats
     chat_chat = await db.get_chat(message.chat.id)
     if chat_chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     # Получаю паутину
     web = await db.get_web(chat_chat['web_id'])
     if web is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     chat_tid = message.chat.id # TID чата
     web_id = web['web_id']     # ID паутины
@@ -1008,7 +1016,7 @@ async def gmute(message: Message):
     ## Запись в БД
     restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason, date_until)
     if restr is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -1048,13 +1056,13 @@ async def gmute(message: Message):
         f"<blockquote>{reason}</blockquote>"
     )
 
-# Гразмут - Команда для снятия глобального мута
+# Глобальный размут ("гразмут", "глразмут", "глоразмут")
 
 async def gunmute(message: Message):
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
     if sender_user is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Поиск получателя
     target_user = {}
@@ -1071,13 +1079,13 @@ async def gunmute(message: Message):
             # @юз найден
             target_tid = await db.get_tid(target_username)
             if target_tid is None:
-                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
             target_user = await db.get_user_by_tid(target_tid) # Получатель найден
     else:
         # Иначе тупо создаю пользователя в БД
         target_user = await db.mk_user(user=message.reply_to_message.from_user)
     if target_user is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -1089,12 +1097,12 @@ async def gunmute(message: Message):
     # Получение чата из таблиц users & chats
     chat_chat = await db.get_chat(message.chat.id)
     if chat_chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     # Получаю паутину
     web = await db.get_web(chat_chat['web_id'])
     if web is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     chat_tid = message.chat.id # TID чата
     web_id = web['web_id']     # ID паутины
@@ -1136,7 +1144,7 @@ async def gunmute(message: Message):
     ## Удаление записи из БД
     result = await db.rm_restr(target_restr['restr_id'])
     if result is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -1174,7 +1182,10 @@ async def gunmute(message: Message):
         f"🛡️ Снял {sender_user['link']}"
     )
 
-# Гкик - Команда для глобального кика пользователя
+# Глобальный кик ("гкик", "глкик", "глокик")
+# Логика проста - глобанит и мгновенное глоразбанивает пользователя,
+# что создаёт иллюзию кика. В Telegram Bot API нет встроенной функции кика.
+# Администрацию кикать нельзя.
 
 async def gkick(message: Message):
     # Создание/поиск отправителя в БД
@@ -1195,7 +1206,7 @@ async def gkick(message: Message):
             # @юз найден
             target_tid = await db.get_tid(target_username)
             if target_tid is None:
-                return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
             target_user = await db.get_user_by_tid(target_tid) # Получатель найден
     else:
         # Иначе тупо создаю пользователя в БД
@@ -1203,7 +1214,7 @@ async def gkick(message: Message):
 
     # Проверка на наличие всех нужных записей
     if None in (target_user, sender_user): # LOL      hoiv yv8ty gvgb0ujnu 9hb97yb         --- Серафим даун 4/14/26
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -1215,12 +1226,12 @@ async def gkick(message: Message):
     # Получение чата из таблиц users & chats
     chat_chat = await db.get_chat(message.chat.id)
     if chat_chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     # Получаю паутину
     web = await db.get_web(chat_chat['web_id'])
     if web is None:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     chat_tid = message.chat.id # TID чата
     web_id = web['web_id']     # ID паутины
@@ -1232,19 +1243,10 @@ async def gkick(message: Message):
         # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
         return await message.reply(f"Недостаточно прав (<b>{post_str['user']}</b>/<b>{post_str['moder']}</b>)") # Вывод
 
-    # Проверка на то, что получатель является админом
+    # Проверка на то, что получатель является админом. Если да - запрет на кик
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
     if target_admin:
-        # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
-        sender_admin_post = sender_admin['post']
-        target_admin_post = target_admin['post']
-
-        if target_admin_post in ("helper", "owner"):
-            return await message.reply(f"Нельзя наказать {post_str['helper']}а или {post_str['owner'][:-2]}ца.")                # Вывод
-        if target_admin_post == "admin" and post_strint[sender_admin_post] < 3:
-            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['helper']}</b>)") # Вывод
-        if target_admin_post == "moder" and post_strint[sender_admin_post] < 2:
-            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)")  # Вывод
+        return await message.reply("Нельзя кикать админов.") # Вывод
 
     # Парсинг сообщения: причина
     try:
@@ -1278,7 +1280,8 @@ async def gkick(message: Message):
             )
             await bot.unban_chat_member(
                 chat_id=chat_tid,
-                user_id=target_tid
+                user_id=target_tid,
+                only_if_banned=True
             )
         except Exception: # Если бота нет в чате или нет прав
             continue
@@ -1295,7 +1298,7 @@ async def gkick(message: Message):
 #   Остальное   #
 # # # # # # # # #
 
-# Отправляет жалобу на пользователя (жалоба)
+# Отправляет жалобу на пользователя ("жалоба", ".жалоба", "репорт", ".репорт")
 # Если чат состоит в паутине, и у этой паутины 
 # назначен админский чат, то жалоба отправится в адм. чат.
 # Работает только в ответ на сообщение, не принимая @юзернейм.
@@ -1311,7 +1314,7 @@ async def report(message: Message):
 
     ## Проверка на наличие запрошенных данных в БД
     if None in (target, sender):
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     target_tid = target['tid'] # TID получателя
 
@@ -1322,7 +1325,7 @@ async def report(message: Message):
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id
     chat = await db.get_chat(message.chat.id)
     if chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     web_id = chat['web_id'] # ID паутины, где производится действие
 
@@ -1368,14 +1371,16 @@ async def report(message: Message):
         reply_markup=await kb.report_admin(report_id)
     )
 
-# 
+# Список чатов паутины (чаты)
+# Выводит список чатов, состоящих в паутине,
+# в порядке времени добавления.
 
 async def chats_tid(message: Message):
     # Получение данных из БД
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id, а после саму паутину
     chat_chat = await db.get_chat(message.chat.id)
     if chat_chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     web_id = chat_chat['web_id'] # ID паутины, где производится действие
 
@@ -1385,7 +1390,7 @@ async def chats_tid(message: Message):
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
-    msg = await message.answer("Подождите, идёт загрузка...") # Пока формируется список чатов паутины
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока формируется список чатов паутины
 
     ## Формирование списка чатов
     chats_tid = web['chats_tid']
@@ -1416,14 +1421,16 @@ async def chats_tid(message: Message):
         )
     )
 
-# 
+# Список админов паутины ("админы", "гладмины", "глоадмины", "кто админ", "кто гладмин", "кто глоадмин")
+# Выводит список админов в порядке иерархии:
+# Владелец и наследник, хелперы, админы и в конце модеры.
 
 async def admins(message: Message):
     # Получение данных из БД
     ## Получение инфы о чате, где была введена команда, чтобы получить web_id, а после саму паутину
     chat_chat = await db.get_chat(message.chat.id)
     if chat_chat is None:
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
 
     web_id = chat_chat['web_id'] # ID паутины, где производится действие
 
@@ -1438,7 +1445,7 @@ async def admins(message: Message):
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
-    msg = await message.answer("Подождите, идёт загрузка...") # Пока формируется список админов паутины
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока формируется список админов паутины
 
     ## Формирование списка админов
     owner_and_heir_str = f"👑 <b>{post_str['owner']} и наследник</b>"
@@ -1488,10 +1495,10 @@ async def admins(message: Message):
 
     await msg.edit_text(
         text=(
-            owner_and_heir_str + "\n" +
-            helpers_str + "\n" +
-            admins_str + "\n" +
-            moders_str + "\n"
+            owner_and_heir_str + "\n\n" +
+            helpers_str + "\n\n" +
+            admins_str + "\n\n" +
+            moders_str + "\n\n"
         )
     )
 
@@ -1525,12 +1532,13 @@ async def introduce(message: Message):
              "🛡️ <b>Глобальная модерация:</b> Админ из одного чата, будет админом во всех чатах паутины.\n\n"
              "<b>Один</b> человек может иметь <b>одну</b> паутину,\n"
              "<b>один</b> чат может состоять в <b>одной</b> паутине!\n\n"
-             "Создай паутину используя меню, добавляй бота в нужные чаты и пиши там команду <code>паутина</code> 👇"
+             "Создай паутину используя меню, добавляй бота в нужные чаты и пиши там команду <code>+паутина</code> 👇"
         ),
         reply_markup=await kb.add_to_chat()
     )
 
-# Отмена активного действия (передача прав владельца, переименование паутины и т. д.)
+# Отмена активного действия (FSM) (/cancel)
+# Отменяет FSM, типа передача прав владельца, переименование паутины и т. д.
 
 @rt.message(Command("cancel", ignore_case=True))
 async def cancel(message: Message, state: FSMContext) -> None:
@@ -1544,9 +1552,13 @@ async def cancel(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer("Активное действие отменено.") # Вывод
 
-#####
-#   #
-#####
+#####################################################################
+#   ГЛАВНЫЙ ОБРАБОТЧИК                                              #
+#   Перед тем, как обработать команду, он добавлят человека,        #
+#   человека которому ответили и чат в БД (on_every_message()).     #
+#   А даже если введена не команда, БД всё равно пополнится.        #
+#   (ну и плюс есть другой больший потенциал)                       #
+#####################################################################
 
 @rt.message()
 async def main(message: Message):
@@ -1603,6 +1615,3 @@ async def main(message: Message):
             return await chats_tid(message)
         elif msgtextcf.startswith(("админы", "гладмины", "глоадмины", "кто админ", "кто гладмин", "кто глоадмин")):
             return await admins(message)
-
-    else:
-        return
