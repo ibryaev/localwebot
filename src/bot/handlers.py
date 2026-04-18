@@ -1385,7 +1385,7 @@ async def chats_tid(message: Message):
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
-    msg = await message.answer("Подождите, идёт загрузка...") # Пока формируется список чатов сетки
+    msg = await message.answer("Подождите, идёт загрузка...") # Пока формируется список чатов паутины
 
     ## Формирование списка чатов
     chats_tid = web['chats_tid']
@@ -1397,7 +1397,7 @@ async def chats_tid(message: Message):
         for chat_tid in chats_tid:
             chat = await db.get_user_by_tid(chat_tid)
             if chat is None: # Теоритически это невозможно. Добавляя чат в паутины, запись в БД обязана быть
-                chat_link = f"@{chat_tid}"
+                chat_link = f"<code>@{chat_tid}</code>"
             else:
                 chat_link = chat['link']
             chats_tid_str += f"{seq}. <b>{chat_link}</b>"
@@ -1413,6 +1413,85 @@ async def chats_tid(message: Message):
         text=(
             f"{emoji} Чаты паутины <b>{web['forename']}</b>\n\n"
             f"{chats_tid_str}"
+        )
+    )
+
+# 
+
+async def admins(message: Message):
+    # Получение данных из БД
+    ## Получение инфы о чате, где была введена команда, чтобы получить web_id, а после саму паутину
+    chat_chat = await db.get_chat(message.chat.id)
+    if chat_chat is None:
+        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+
+    web_id = chat_chat['web_id'] # ID паутины, где производится действие
+
+    ## Получаю паутину
+    web = await db.get_web(web_id)
+    if web is None:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    ## Получаю админов паутину
+    admins = await db.get_web_admins(web_id)
+    if admins is None:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Вывод
+    msg = await message.answer("Подождите, идёт загрузка...") # Пока формируется список админов паутины
+
+    ## Формирование списка админов
+    owner_and_heir_str = f"👑 <b>{post_str['owner']} и наследник</b>"
+    helpers_str = f"3️⃣ <b>{post_str['helper']}ы</b>"
+    admins_str = f"2️⃣ <b>{post_str['admin']}ы</b>"
+    moders_str = f"1️⃣ <b>{post_str['moder']}ы</b>"
+    if not admins:
+        text = "<b>В этой паутине нет админов.</b>" # Технически невозможное условие, т. к. в паутине всегда есть владелец
+    else:
+        for admin in admins:
+            admin_tid = admin['admin_tid']
+            admin_post = admin['post']
+            admin_user = await db.get_user_by_tid(admin_tid)
+
+            if admin_user is None: # Теоритически это невозможно. Добавляя админа в паутину, запись в БД обязана быть
+                admin_link = f"<code>@{admin_tid}</code>"
+            else:
+                admin_link = admin_user['link']
+
+            if admin_tid == web['owner_tid']:
+                owner_and_heir_str += f"\n{admin_link} ({post_str[admin_post]})"
+                if admin_post == "helper" and admin_tid == chat_chat['owner_tid']:
+                    owner_and_heir_str += " (Владелец этого чата)"
+            elif admin_tid == web['heir_tid']:
+                owner_and_heir_str += f"\n{admin_link} (Наследник) ({post_str[admin_post]})"
+                if admin_tid == chat_chat['owner_tid']:
+                    owner_and_heir_str += " (Владелец этого чата)"
+
+            elif admin_post == "helper":
+                helpers_str += "\n" + admin_link
+                if admin_tid == chat_chat['owner_tid']:
+                    helpers_str += " (Владелец этого чата)"
+            elif admin_post == "admin":
+                admins_str += "\n" + admin_link
+            elif admin_post == "moder":
+                moders_str += "\n" + admin_link
+            # Проверка на "(Владелец этого чата)" есть только у владельца паутины и хелперов, 
+            # потому что владельцы чатов не могут иметь должность ниже хелпера.
+
+    ## Итоговый вывод
+    if helpers_str == f"3️⃣ <b>{post_str['helper']}ы</b>":
+        helpers_str = ""
+    if admins_str == f"2️⃣ <b>{post_str['admin']}ы</b>":
+        admins_str = ""
+    if moders_str == f"1️⃣ <b>{post_str['moder']}ы</b>":
+        moders_str = ""
+
+    await msg.edit_text(
+        text=(
+            owner_and_heir_str + "\n" +
+            helpers_str + "\n" +
+            admins_str + "\n" +
+            moders_str + "\n"
         )
     )
 
@@ -1451,7 +1530,7 @@ async def introduce(message: Message):
         reply_markup=await kb.add_to_chat()
     )
 
-# Отмена активного действия (передача прав владельца, переименование сетки и т. д.)
+# Отмена активного действия (передача прав владельца, переименование паутины и т. д.)
 
 @rt.message(Command("cancel", ignore_case=True))
 async def cancel(message: Message, state: FSMContext) -> None:
@@ -1507,21 +1586,23 @@ async def main(message: Message):
         elif msgtextcf.startswith("снять"):
             return await fire(message)
 
-        elif msgtextcf.startswith("гбан") or msgtextcf.startswith("глобан"):
+        elif msgtextcf.startswith(("гбан", "глбан", "глобан")):
             return await gban(message)
-        elif msgtextcf.startswith("гразбан") or msgtextcf.startswith("глоразбан"):
+        elif msgtextcf.startswith(("гразбан", "глразмут", "глоразбан")):
             return await gunban(message)
-        elif msgtextcf.startswith("гмут") or msgtextcf.startswith("гломут"):
+        elif msgtextcf.startswith(("гмут", "глмут", "гломут")):
             return await gmute(message)
-        elif msgtextcf.startswith("гразмут") or msgtextcf.startswith("глоразмут"):
+        elif msgtextcf.startswith(("гразмут", "глразмут", "глоразмут")):
             return await gunmute(message)
-        elif msgtextcf.startswith("гкик") or msgtextcf.startswith("глокик"):
+        elif msgtextcf.startswith(("гкик", "глкик", "глокик")):
             return await gkick(message)
 
         elif msgtextcf.startswith(("жалоба", ".жалоба", "репорт", ".репорт")):
             return await report(message)
         elif msgtextcf == "чаты":
             return await chats_tid(message)
+        elif msgtextcf.startswith(("админы", "гладмины", "глоадмины", "кто админ", "кто гладмин", "кто глоадмин")):
+            return await admins(message)
 
     else:
         return
