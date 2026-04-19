@@ -17,7 +17,7 @@ async def ping(message: Message):
     reply = ""
     match message.text.casefold():
         case "бот":
-            reply = "✅ На месте"
+            reply = "✅" # 4/19/26 - Yqw O предложил заменить "✅ На месте" на просто "✅". Принято
         case "кинг":
             reply = "КОНГ"
         case "пинг":
@@ -135,7 +135,32 @@ async def add_to_chat(message: Message):
 
 @rt.message(F.text == "📚 Команды")
 async def commands_list(message: Message):
-    pass
+    # 4/19/26 - Возможно стоит сделать страницу в teletype.in?
+    await message.answer(
+        "Визуальная панель управления паутиной <b>пока-что</b> доступна " #
+        "только в ЛС с ботом и только для владельца.\n\n" #
+
+        "<code>+паутина</code>, <code>-паутина</code> — Добавляет, удаляет чат из паутины. Прописать можешь только владелец чата или паутины.\n"
+        "<code>паутина</code> — Просмотр информации о паутине, в которой состоит этот чат.\n"
+        "<code>сделать админским</code> — Делает чат, в котором была прописана команда, админским в этой паутине. " #
+        "Наличие админского чата активирует возможно подавать жалобы. Жалобы со всех чатов паутины будут приходить в админский чат.\n\n" #
+
+        "<b>*</b> <code>повысить</code>, <code>понизить</code>, <code>снять</code> — Повышает или создаёт, понижает, сразу снимает админа в паутине.\n\n"
+
+        "<b>***</b> <code>[г/гл/гло][бан/мут/кик]</code> — Банить/мутит/кикает человека во всех чатах паутины.\n"
+        "<b>***</b> <code>[г/гл/гло]раз[бан/мут]</code> — Разбанивает/размьючивает человека во всех чатах паутины.\n\n"
+
+        "<b>**</b> <code>жалоба</code>/<code>.жалоба</code>/<code>репорт</code>/<code>.репорт</code> — Подаёт жалобу на человека.\n"
+        "<code>чаты</code> — Выводит список чатов, состоящих в паутине.\n"
+        "<code>админы</code>/<code>гладмины</code>/<code>глоадмины</code>/" #
+        "<code>кто админ</code>/<code>кто гладмин</code>/<code>кто глоадмин</code> — Выводит список глобальной администрации.\n" #
+        "<code>жалобы</code> — Выводит список нерешённых жалоб. Можно вводить только в админском чате.\n"
+        "<b>*</b> <code>причина</code>/<code>наказания</code> — Выводит список всех наказаний пользователя.\n\n"
+
+        "<b>*</b> — Можно передать @юзернейм или @телеграмайди человека, или ответить на его сообщение.\n"
+        "<b>**</b> — Можно дать причину (вводить нужно с новой строки).\n"
+        "<b>***</b> — Плюсом к одинарной звездочке прибавляется возможность ввести причину (вводить нужно с новой строки)."
+    )
 
 #####################################
 #   Команды для групповых чатов     #
@@ -901,7 +926,7 @@ async def gmute(message: Message):
     # Раньше я писал комментарии только в тех местах, которые как мне казалось, наиболее замудрённые.
     # Теперь же я в целом пишу больше комментариев: даже в простейших местах.
     # Ктобы мог подумать, что так намного легче передвигаться по коду? Глазу есть за что цепляться.
-    # TODO Пересмотреть весь код в файлах handers.py и callbacks.py
+    # TODO Пересмотреть весь код в файлах handers.py и callbacks.py - СДЕЛАНО 76098b0 и 909ac76
 
     # Создание/поиск отправителя в БД
     sender_user = await db.mk_user(user=message.from_user)
@@ -1504,19 +1529,24 @@ async def admins(message: Message):
             # потому что владельцы чатов не могут иметь должность ниже хелпера.
 
     ## Итоговый вывод
-    if helpers_str == f"3️⃣ <b>{post_str['helper']}ы</b>":
+    owner_and_heir_str += "\n\n"
+    helpers_str += "\n\n"
+    admins_str += "\n\n"
+    moders_str += "\n\n"
+
+    if helpers_str == f"3️⃣ <b>{post_str['helper']}ы</b>\n\n":
         helpers_str = ""
-    if admins_str == f"2️⃣ <b>{post_str['admin']}ы</b>":
+    if admins_str == f"2️⃣ <b>{post_str['admin']}ы</b>\n\n":
         admins_str = ""
-    if moders_str == f"1️⃣ <b>{post_str['moder']}ы</b>":
+    if moders_str == f"1️⃣ <b>{post_str['moder']}ы</b>\n\n":
         moders_str = ""
 
     await msg.edit_text(
         text=(
-            owner_and_heir_str + "\n\n" +
-            helpers_str + "\n\n" +
-            admins_str + "\n\n" +
-            moders_str + "\n\n"
+            owner_and_heir_str +
+            helpers_str +
+            admins_str +
+            moders_str
         )
     )
 
@@ -1681,21 +1711,6 @@ async def introduce(message: Message):
         reply_markup=await kb.add_to_chat()
     )
 
-# Отмена активного действия (FSM) (/cancel)
-# Отменяет FSM, типа передача прав владельца, переименование паутины и т. д.
-
-@rt.message(Command("cancel", ignore_case=True))
-async def cancel(message: Message, state: FSMContext) -> None:
-    if message.chat.type != "private": return
-    await on_every_message(message=message)
-
-    current_state = await state.get_state()
-    if current_state is None:
-        return await message.answer("У Вас нет активных действий.") # Вывод
-
-    await state.clear()
-    await message.answer("Активное действие отменено.") # Вывод
-
 #####################################################################
 #   ГЛАВНЫЙ ОБРАБОТЧИК                                              #
 #   Перед тем, как обработать команду, он добавлят человека,        #
@@ -1724,6 +1739,8 @@ async def main(message: Message):
             return await mk_web(message)
         elif msgtext == "➕ Добавить в чат":
             return await add_to_chat(message)
+        elif msgtext == "📚 Команды":
+            return await commands_list(message)
 
     elif message.chat.type in ("group", "supergroup"):
         if msgtextcf == "паутина":
@@ -1757,7 +1774,7 @@ async def main(message: Message):
             return await report(message)
         elif msgtextcf == "чаты":
             return await chats_tid(message)
-        elif msgtextcf.startswith(("админы", "гладмины", "глоадмины", "кто админ", "кто гладмин", "кто глоадмин")):
+        elif msgtextcf in ("админы", "гладмины", "глоадмины", "кто админ", "кто гладмин", "кто глоадмин"):
             return await admins(message)
         elif msgtextcf == "жалобы":
             return await reports(message)

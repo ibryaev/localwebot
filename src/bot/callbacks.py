@@ -1,5 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message, ChatPermissions
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramBadRequest
@@ -11,6 +12,21 @@ from utils import *
 import bot.keyboards as kb
 
 rt = Router(name="callbacks")
+
+# Отмена активного действия (FSM) (/cancel)
+# Отменяет FSM, типа передача прав владельца, переименование паутины и т. д.
+
+@rt.message(Command("cancel", ignore_case=True))
+async def cancel(message: Message, state: FSMContext) -> None:
+    if message.chat.type != "private": return
+    await on_every_message(message=message)
+
+    current_state = await state.get_state()
+    if current_state is None:
+        return await message.answer("У Вас нет активных действий.") # Вывод
+
+    await state.clear()
+    await message.answer("Активное действие отменено.") # Вывод
 
 ###########################
 #   Главное меню          #
@@ -513,11 +529,12 @@ async def admin_down(callback: CallbackQuery):
     old_post = admin['post']
     user_post = user_admin['post']
 
-    # Нужно проверить, вдруг у цели есть чаты в этой паутине
-    is_target_have_chats = await db.cur.execute(
+    # Нужно проверить, вдруг у цели есть чаты в этой паутине.
+    await db.cur.execute(
         "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
         (admin_tid, web_id)
     )
+    is_target_have_chats = await db.cur.fetchall()
     if is_target_have_chats:
         return await callback.answer(
             # Вывод
