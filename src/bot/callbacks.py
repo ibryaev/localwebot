@@ -513,6 +513,21 @@ async def admin_down(callback: CallbackQuery):
     old_post = admin['post']
     user_post = user_admin['post']
 
+    # Нужно проверить, вдруг у цели есть чаты в этой паутине
+    is_target_have_chats = await db.cur.execute(
+        "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
+        (admin_tid, web_id)
+    )
+    if is_target_have_chats:
+        return await callback.answer(
+            # Вывод
+            text=(
+                "У этого пользователя есть чаты в паутине. Его нельзя снять или понизить. "
+                "Для начала исключите его чаты из паутины."
+            ),
+            show_alert=True
+        ) 
+
     if post_strint[user_post] < 3:
         # Понижать других админов можно только начиная с ранга Хелпер
         return await callback.answer(f"Недостаточно прав ({post_str[user_post]}/{post_str['helper']})") # Вывод
@@ -576,6 +591,21 @@ async def admin_fire(callback: CallbackQuery):
     admin_tid = admin['admin_tid']
     post = admin['post']
     user_post = user_admin['post']
+
+    # Нужно проверить, вдруг у цели есть чаты в этой паутине
+    is_target_have_chats = await db.cur.execute(
+        "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
+        (admin_tid, web_id)
+    )
+    if is_target_have_chats:
+        return await callback.answer(
+            # Вывод
+            text=(
+                "У этого пользователя есть чаты в паутине. Его нельзя снять или понизить. "
+                "Для начала исключите его чаты из паутины."
+            ),
+            show_alert=True
+        ) 
 
     if post_strint[user_post] < 3:
         # Снимать других админов можно только начиная с ранга Хелпер
@@ -992,6 +1022,9 @@ async def report_gmute(callback: CallbackQuery):
 async def report_check(callback: CallbackQuery):
     report_id = callback.data.split("_")[-1]
     report = await db.get_report(report_id)
+    if report is None:
+        await callback.message.delete()
+        return await callback.answer("Жалоба не найдена")
     sender_tid = report['sender_tid']
     target_tid = report['target_tid']
     sender = await db.get_user_by_tid(sender_tid)
@@ -1014,23 +1047,26 @@ async def report_check(callback: CallbackQuery):
         )
 
     # Вывод
-    await bot.edit_message_text(
-        chat_id=web_admin_chat_tid,
-        message_id=report['message_tid_bot_admin'],
-        text=(
-            f"✅ Жалоба на {target['link']} проверена (#({report['report_id']}))\n"
-            f"🆔 <code>@{target_tid}</code>\n"
-            f"🗣 Отправил {sender['link']}\n"
-            f"🛡️ Проверил {await mklink(callback.from_user.full_name, callback.from_user.username)}\n"
-            f"<blockquote>{report['reason']}</blockquote>"
+    try:
+        await bot.edit_message_text(
+            chat_id=web_admin_chat_tid,
+            message_id=report['message_tid_bot_admin'],
+            text=(
+                f"✅ Жалоба на {target['link']} проверена (#{report['report_id']})\n"
+                f"🆔 <code>@{target_tid}</code>\n"
+                f"🗣 Отправил {sender['link']}\n"
+                f"🛡️ Проверил {target['link']}\n"
+                f"<blockquote>{report['reason']}</blockquote>"
+            )
         )
-    )
-    await bot.edit_message_text(
-        chat_id=report['chat_tid'],
-        message_id=report['message_tid_bot_user'],
-        text=f"✅ Жалоба проверена (#{report['report_id']})"
-    )
-    await callback.answer()
+        await bot.edit_message_text(
+            chat_id=report['chat_tid'],
+            message_id=report['message_tid_bot_user'],
+            text=f"✅ Жалоба проверена (#{report['report_id']})"
+        )
+        await callback.answer()
+    except TelegramBadRequest:
+        pass
 
 # Удаляет сообщение, на которое была подана жалоба
 

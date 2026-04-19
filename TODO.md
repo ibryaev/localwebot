@@ -46,3 +46,7 @@
 - [x] Replace `.answer()` for group chat commands with `.reply()`                        ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
 - [x] Restrict restricted user when he joined the chat in the web where he is restricted ([4206fd1](https://github.com/ibryaev/localwebot/commit/4206fd1976c0839c29bcdd302f22fe071adfff5b))
 - [ ] Add from-chat name in the report message sended in the admin chat
+- [x] Add a command to view all restrictions for a specific user
+- [x] Add a command to view a list of all unclosed reports
+- [x] Prevent the chat owner from being demoted
+- [ ] Add chat membership status for each admin in the "admins" command

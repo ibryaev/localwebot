@@ -470,6 +470,18 @@ async def down(message: Message):
     if target_admin is None:
         return await message.reply(f"Этот пользователь и так не является админом.") # Вывод
 
+    # Нужно проверить, вдруг у цели есть чаты в этой паутине.
+    # Делаю прямой запрос в БД (без отдельной функции, т. к. это излишне)
+    # 4/19/26 - В целом планирую сократить кол-во функций в db_query.py, если это возможно.
+    # Проведу там код ревью (потом)
+    await db.cur.execute(
+        "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
+        (target_tid, web_id)
+    )
+    is_target_have_chats = await db.cur.fetchall()
+    if is_target_have_chats:
+        return await message.reply("У этого пользователя есть чаты в паутине. Его нельзя снять или понизить.") # Вывод
+
     # Непосредственно логика повышения ранга
     sender_post = sender_admin['post'] # Должность отправителя
     target_post = target_admin['post'] # Должность получателя
@@ -563,6 +575,15 @@ async def fire(message: Message):
     # Если target не админ, то с него "нечего брать"
     if target_admin is None:
         return await message.reply(f"Этот пользователь и так не является админом.") # Вывод
+
+    # Нужно проверить, вдруг у цели есть чаты в этой паутине
+    await db.cur.execute(
+        "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
+        (target_tid, web_id)
+    )
+    is_target_have_chats = await db.cur.fetchall()
+    if is_target_have_chats:
+        return await message.reply("У этого пользователя есть чаты в паутине. Его нельзя снять или понизить.") # Вывод
 
     # Непосредственно логика повышения ранга
     sender_post = sender_admin['post'] # Должность отправителя
@@ -666,7 +687,7 @@ async def gban(message: Message):
         return await message.reply(
             text=(
                  "Этот пользователь уже забанен.\n\n"
-                f"🔇 {target_user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                f"⛔ {target_user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
                 f"🆔 <code>@{target_tid}</code>\n"
                 f"⏳ Выдано <b>{date_reg}</b>\n"
                 f"🛡️ Выдал {admin_user['link']}\n"
@@ -1401,10 +1422,7 @@ async def chats_tid(message: Message):
         seq = 1
         for chat_tid in chats_tid:
             chat = await db.get_user_by_tid(chat_tid)
-            if chat is None: # Теоритически это невозможно. Добавляя чат в паутины, запись в БД обязана быть
-                chat_link = f"<code>@{chat_tid}</code>"
-            else:
-                chat_link = chat['link']
+            chat_link = chat['link']
             chats_tid_str += f"{seq}. <b>{chat_link}</b>"
             if web['admin_chat_tid'] == chat_tid:
                 chats_tid_str += " <i>(адм)</i>"
@@ -1459,11 +1477,7 @@ async def admins(message: Message):
             admin_tid = admin['admin_tid']
             admin_post = admin['post']
             admin_user = await db.get_user_by_tid(admin_tid)
-
-            if admin_user is None: # Теоритически это невозможно. Добавляя админа в паутину, запись в БД обязана быть
-                admin_link = f"<code>@{admin_tid}</code>"
-            else:
-                admin_link = admin_user['link']
+            admin_link = admin_user['link']
 
             if admin_tid == web['owner_tid']:
                 owner_and_heir_str += f"\n{admin_link} ({post_str[admin_post]})"
@@ -1501,6 +1515,131 @@ async def admins(message: Message):
             moders_str + "\n\n"
         )
     )
+
+# Список всех незакрытых жалоб (жалобы)
+# Вводится только в админ чате.
+
+async def reports(message: Message):
+    # Получение чата из таблиц users & chats
+    chat_chat = await db.get_chat(message.chat.id)
+    if chat_chat is None:
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+
+    # Получаю паутину
+    web = await db.get_web(chat_chat['web_id'])
+    if web is None:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    # Проверка на то, что команда введена в админ чате
+    if message.chat.id != web['admin_chat_tid']: return
+
+    # Получаю список всех репортов в этой паутине
+    await db.cur.execute("SELECT * FROM reports WHERE web_id = %s", (web['web_id'],))
+    reports = await db.cur.fetchall()
+    if not reports:
+        return await message.reply("В вашей сетке нет активных жалоб! Так держать!") # Вывод
+
+    # Вывод
+    for report in reports:
+        report_id = report['report_id']
+        sender_tid = report['sender_tid']
+        target_tid = report['target_tid']
+        sender = await db.get_user_by_tid(sender_tid)
+        target = await db.get_user_by_tid(target_tid)
+
+        await message.answer(
+            f"❗️ Жалоба на {target['link']} (#{report_id})\n"
+            f"🆔 <code>@{target_tid}</code>\n"
+            f"🗣 Отправил {sender['link']}\n"
+            f"<blockquote>{report['reason']}</blockquote>\n\n"
+            f"🔗 <b>https://t.me/c/{str(report['chat_tid']).removeprefix("-100")}/{report['message_tid_bot_admin']}</b>"
+        )
+
+# Информация о наказаниях пользователя (причина, наказания)
+# Показывает инфу о наложенных наказаниях на данного пользователя
+# в данной паутине.
+
+async def restr_reason(message: Message):
+    # Создание/поиск отправителя в БД
+    sender_user = await db.mk_user(user=message.from_user)
+
+    # Поиск получателя
+    target_user = {}
+    if message.reply_to_message is None:
+        # Если сообщение - не ответ
+        target_username = await grep_username(message.text.split("\n")[0]) # Попытка найти в тексте @юзернейм (grep_username())
+        if target_username is None:
+            # @юз не найден
+            return await message.reply("Нужно либо ответить на сообщение, либо дать @юзернейм.")  # Вывод
+        elif target_username.isdigit():
+            # Если найденный @юз является TID
+            target_user = await db.get_user_by_tid(int(target_username))
+        else:
+            # @юз найден
+            target_tid = await db.get_tid(target_username)
+            if target_tid is None:
+                return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+            target_user = await db.get_user_by_tid(target_tid) # Получатель найден
+    else:
+        # Иначе тупо создаю пользователя в БД
+        target_user = await db.mk_user(user=message.reply_to_message.from_user)
+
+    # Проверка на наличие всех нужных записей
+    if None in (target_user, sender_user):
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    target_tid = target_user['tid'] # TID получателя
+
+    # Проверка корректности отправителя и получателя
+    if target_tid == BOT_TID: return await message.reply("Нельзя взаимодействовать с ботом.")
+
+    # Получение чата из таблиц users & chats
+    chat_chat = await db.get_chat(message.chat.id)
+    if chat_chat is None:
+        return await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+
+    # Получаю паутину
+    web = await db.get_web(chat_chat['web_id'])
+    if web is None:
+        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+
+    target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web['web_id'])
+    if not target_restrs:
+        easteregg_chance = randint(1, 100) # Пасхалка
+        if easteregg_chance <= 30:
+            easteregg_text = " Душа чиста."
+        else:
+            easteregg_text = ""
+        return await message.reply(f"У этого пользователя нет наказаний в паутине <b>{web['forename']}</b>.{easteregg_text}") # ВЫывод
+
+    else:
+        for restr in target_restrs:
+            admin_user = await db.get_user_by_tid(restr['admin_tid'])
+            date_reg = await parse_date(restr['date_reg'], "HH:mm d MMMM")
+            date_until = await parse_date(restr['date_until'], "HH:mm d MMMM")
+
+            if restr['restr'] == "ban":
+                return await message.reply(
+                    # Вывод
+                    text=(
+                        f"⛔ {target_user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                        f"🆔 <code>@{target_tid}</code>\n"
+                        f"⏳ Выдано <b>{date_reg}</b>\n"
+                        f"🛡️ Выдал {admin_user['link']}\n"
+                        f"<blockquote>{restr['reason']}</blockquote>"
+                    )
+                )
+            if restr['restr'] == "mute":
+                return await message.reply(
+                    # Вывод
+                    text=(
+                        f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                        f"🆔 <code>@{target_tid}</code>\n"
+                        f"⏳ Выдано <b>{date_reg}</b>\n"
+                        f"🛡️ Выдал {admin_user['link']}\n"
+                        f"<blockquote>{restr['reason']}</blockquote>"
+                    )
+                )
 
 ##################################
 #   Команды для личных чатов     #
@@ -1567,10 +1706,10 @@ async def main(message: Message):
     if message.text is None:
         return
 
-    msgtext = message.text
-    msgtextcf = msgtext.casefold()
+    msgtext = message.text.strip()
+    msgtextcf = msgtext.casefold().strip()
 
-    if msgtextcf in ("бот", "кинг", "пинг", "пиу", "пиф"):
+    if msgtextcf in ("бот", "кинг", "пинг", "пиу", "пиф", "пук"):
         return await ping(message)
 
     elif message.chat.type == "private":
@@ -1615,3 +1754,7 @@ async def main(message: Message):
             return await chats_tid(message)
         elif msgtextcf.startswith(("админы", "гладмины", "глоадмины", "кто админ", "кто гладмин", "кто глоадмин")):
             return await admins(message)
+        elif msgtextcf == "жалобы":
+            return await reports(message)
+        elif msgtextcf.startswith(("причина", "наказания")):
+            return await restr_reason(message)
