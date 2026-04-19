@@ -81,6 +81,6 @@ async def on_my_join_transition(event: ChatMemberUpdated):
     await event.answer(
         text=(
             f"{await rndemoji()} <b>Этот чат не состоит ни в какой паутине</b>\n"
-             "Кто-нибудь, у кого она есть, должен написать команду <code>паутина</code>."
+             "Кто-нибудь, у кого она есть, должен написать команду <code>+паутина</code>."
         )
     )
