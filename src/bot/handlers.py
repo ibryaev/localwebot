@@ -1357,12 +1357,16 @@ async def report(message: Message):
     if not web['admin_chat_tid']:
         return await message.reply("У паутины, в которой состоит этот чат, нет админского чата.") # Вывод
 
+    chat_user = await db.get_user_by_tid(message.chat.id)
+
     # Непосредственно логика команды
     message_user = await message.reply("Подождите, идёт загрузка...") # Вывод (загрузка)
     message_admin = await bot.send_message(
          # Вывод (загрузка)
         chat_id=web['admin_chat_tid'],
-        text="Подождите, идёт загрузка..."
+        text=(
+            f"Идёт загрузка жалобы из чата {chat_user['link']}..."
+        )
     )
 
     # Непосредственно создание жалобы в БД
@@ -1386,7 +1390,7 @@ async def report(message: Message):
         text=(
             f"❗️ Жалоба на {target['link']} (#{report['report_id']})\n"
             f"🆔 <code>@{target_tid}</code>\n"
-            f"🗣 Отправил {sender['link']}\n"
+            f"🗣 Отправил {sender['link']} из чата {chat_user['link']}\n"
             f"<blockquote>{report['reason']}</blockquote>"
         ),
         reply_markup=await kb.report_admin(report_id)
@@ -1546,13 +1550,14 @@ async def reports(message: Message):
         target_tid = report['target_tid']
         sender = await db.get_user_by_tid(sender_tid)
         target = await db.get_user_by_tid(target_tid)
+        chat = await db.get_user_by_tid(report['chat_tid'])
 
         await message.answer(
             f"❗️ Жалоба на {target['link']} (#{report_id})\n"
             f"🆔 <code>@{target_tid}</code>\n"
-            f"🗣 Отправил {sender['link']}\n"
+            f"🗣 Отправил {sender['link']} из чата {chat['link']}\n"
             f"<blockquote>{report['reason']}</blockquote>\n\n"
-            f"🔗 <b>https://t.me/c/{str(report['chat_tid']).removeprefix("-100")}/{report['message_tid_bot_admin']}</b>"
+            f"🔗 <b>https://t.me/c/{str(web['admin_chat_tid']).removeprefix("-100")}/{report['message_tid_bot_admin']}</b>"
         )
 
 # Информация о наказаниях пользователя (причина, наказания)
