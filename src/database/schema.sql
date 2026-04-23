@@ -4,7 +4,7 @@ BEGIN TRANSACTION;
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'admin_type') THEN
-        CREATE TYPE admin_type AS ENUM ('owner', 'helper', 'admin', 'moder');
+        CREATE TYPE admin_type AS ENUM ('owner', 'admin', 'adminjr', 'moder', 'helper');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'restriction_type') THEN
         CREATE TYPE restriction_type AS ENUM ('ban', 'mute');

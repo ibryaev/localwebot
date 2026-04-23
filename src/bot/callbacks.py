@@ -95,8 +95,7 @@ async def rename_msg_emoji(message: Message, state: FSMContext):
         return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
     result = await db.upd_web_name(web['web_id'], forename, emoji)
-    if not result:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    if not result: return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
     old_forename = web['forename']
@@ -152,8 +151,7 @@ async def about_msg_description(message: Message, state: FSMContext):
     web_id = web['web_id']
 
     result = await db.upd_web_descr(web_id, descr)
-    if not result:
-        return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    if not result: return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
     await message.answer(
@@ -251,9 +249,10 @@ async def transfer_msg_owner_tid(message: Message, state: FSMContext):
 #   Панель управления админами  #
 #   #   #   #   #   #   #   #   #
 
-async def admin_output(admin: dict, admin_tid: int, post: str, heir_tid: int, callback: CallbackQuery):
+async def admin_output(admin: dict, post: str, heir_tid: int, callback: CallbackQuery):
     '''Функция, которая обновляет сообщение управления конкретным админом'''
     admin_id = admin['admin_id']
+    admin_tid = admin['admin_tid']
     admin_db = await db.get_user_by_tid(admin_tid)
     admin_link = admin_db['link'] if admin_db else f"<code>{admin_tid}</code>"
     post = post_str[post]
@@ -298,21 +297,21 @@ async def rm_admin_chat(callback: CallbackQuery):
         )
 
     admin_chat = await db.get_user_by_tid(admin_chat_tid)
-    admin_chat_link = admin_chat['link'] if admin_chat else f"<code>{admin_chat_tid}</code>"
+    admin_chat_link = admin_chat['username'] if admin_chat["username"] else admin_chat_tid
 
     result = await db.upd_web_admin_chat_tid(web_id, None)
-
     if not result:
         # Вывод
         await callback.message.answer("Непредвиденная ошибка. Попробуйте позже.") 
         return await callback.answer()
 
     # Вывод
-    await callback.message.answer(
+    await callback.answer(
         text=(
-            f"Вы отняли у чата {admin_chat_link} статус админского. "
+            f"Вы отняли у чата {admin_chat['full_name']} (@{admin_chat_link}) статус админского. "
              "Теперь у Вашей паутины нет админского чата."
-        )
+        ),
+        show_alert=True
     )
     return await callback.answer()
 
@@ -343,23 +342,23 @@ async def rm_heir(callback: CallbackQuery):
         )
 
     heir = await db.get_user_by_tid(heir_tid)
-    heir_link = heir['link'] if heir else f"<code>{heir_tid}</code>"
+    heir_link = heir['username'] if heir['username'] else heir_tid
 
     result = await db.upd_web_heir(web_id, None)
-
     if not result:
-        return await callback.message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        # Вывод
+        await callback.message.reply("Непредвиденная ошибка. Попробуйте позже.")
+        return await callback.answer()
 
     # Вывод
-    await admins(callback)
-    await callback.message.answer(
+    await callback.answer(
         text=(
-            f"Вы отняли у пользователя {heir_link} статус наследника. "
+            f"Вы отняли у пользователя {heir['full_name']} (@{heir_link}) статус наследника. "
              "Теперь у Вашей паутины нет наследника."
         ),
         show_alert=True
     )
-    await callback.answer()
+    await admins(callback)
 
 # Список всех админов
 # Выводит список всех админов в паутине, где каждый админ - inline-кнпока.
@@ -421,7 +420,7 @@ async def admin(callback: CallbackQuery):
     if user_tid == admin_tid:
         return await callback.answer("Это Вы") # Вывод
 
-    await admin_output(admin, admin_tid, admin['post'], web['heir_tid'], callback) # Вывод
+    await admin_output(admin, admin['post'], web['heir_tid'], callback) # Вывод
 
 # Повышение конкретного админа
 # Повышать админов можно начиная с ранга хелпера.
@@ -430,47 +429,59 @@ async def admin(callback: CallbackQuery):
 
 @rt.callback_query(F.data.startswith("up_"))
 async def admin_up(callback: CallbackQuery):
-    user_tid = callback.from_user.id
-    admin_id = callback.data.split("_")[-1]
+    sender_tid = callback.from_user.id
+    target_id = callback.data.split("_")[-1]
 
-    web = await db.get_web_by_owner_tid(user_tid)
-    web_id = web['web_id']
-    admin = await db.get_admin(admin_id)
-    user_admin = await db.get_admin_by_tid(user_tid, web_id)
-
+    target_admin = await db.get_admin(target_id)
+    if target_admin is None:
+        # Вывод
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.",
+            show_alert=True
+        )
+        return await callback.message.delete()
+    web = await db.get_web(target_admin['web_id'])
     if web is None:
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>этой паутины не существует</b>."
+        )
+        return await callback.message.delete()
+    web_id = web['web_id']
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if sender_admin is None:
         # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
-        return await callback.answer()
-    if admin is None:
-        # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
-        return await callback.answer()
-    if user_admin is None:
-        # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ в этой сетке</b>.")
-        return await callback.answer()
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ</b>.",
+            show_alert=True
+        )
+        return await callback.message.delete()
 
-    admin_tid = admin['admin_tid']
-    old_post = admin['post']
-    user_post = user_admin['post']
+    sender_post = sender_admin['post']
+    sender_post_str = post_str[sender_post]
+    target_tid = target_admin['admin_tid']
+    target_old_post = target_admin['post']
 
-    if post_strint[user_post] < 3:
-        # Повышать других админов можно только начиная с ранга Хелпер
-        return await callback.answer(f"Недостаточно прав ({post_str[user_post]}/{post_str['helper']})") # Вывод
+    # Проверка прав
+    ## Проверка на то, что отправитель является админом
+    if post_strint[sender_post] < 4:
+        return await callback.answer(
+            # Вывод
+            text=f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['admin']}</b>).",
+            show_alert=True
+        )
 
-    if old_post == "owner":
+    if target_old_post == "owner":
         return await callback.answer(
             # Вывод
             text="Нельзя менять права владельцу паутины.",
             show_alert=True
         )
 
-    elif old_post == "helper":
-        if user_post != "owner":
+    elif target_old_post == "admin":
+        if sender_post != "owner":
             return await callback.answer(
                 # Вывод
-                text="Вы не можете менять права админу, который выше или равен Вам.",
+                text="Вы не можете менять права админу, который выше или равен Вам по должности.",
                 show_alert=True
             )
         else:
@@ -483,20 +494,18 @@ async def admin_up(callback: CallbackQuery):
                 show_alert=True
             )
 
-    elif old_post == "admin":
-        if user_post != "owner":
-            return await callback.answer(
-                # Вывод
-                text="Назначать новых хелперов может только владелец паутины.",
-                show_alert=True
-            )
+    elif target_old_post == "adminjr" and sender_post != "owner":
+        return await callback.answer(
+            # Вывод
+            text=f"Назначить нового {post_str['admin']}а может только {post_str['owner']}.",
+            show_alert=True
+        )
 
-    new_post = post_intstr[post_strint[old_post] + 1]
-    result = await db.upd_admin_post(admin_tid, web_id, new_post)
-    if not result:
-        return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
+    target_new_post = post_intstr[post_strint[target_old_post] + 1]
+    result = await db.upd_admin_post(target_tid, web_id, target_new_post)
+    if not result: return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
 
-    await admin_output(admin, admin_tid, new_post, web['heir_tid'], callback) # Вывод
+    await admin_output(target_admin, target_new_post, web['heir_tid'], callback) # Вывод
 
 # Понижение конкретного админа
 # Понижать админов можно начиная с ранга хелпера.
@@ -504,35 +513,58 @@ async def admin_up(callback: CallbackQuery):
 
 @rt.callback_query(F.data.startswith("down_"))
 async def admin_down(callback: CallbackQuery):
-    user_tid = callback.from_user.id
-    admin_id = callback.data.split("_")[-1]
+    sender_tid = callback.from_user.id
+    target_id = callback.data.split("_")[-1]
 
-    web = await db.get_web_by_owner_tid(user_tid)
-    web_id = web['web_id']
-    admin = await db.get_admin(admin_id)
-    user_admin = await db.get_admin_by_tid(user_tid, web_id)
-
+    target_admin = await db.get_admin(target_id)
+    if target_admin is None:
+        # Вывод
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.",
+            show_alert=True
+        )
+        return await callback.message.delete()
+    web = await db.get_web(target_admin['web_id'])
     if web is None:
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>этой паутины не существует</b>."
+        )
+        return await callback.message.delete()
+    web_id = web['web_id']
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if sender_admin is None:
         # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
-        return await callback.answer()
-    if admin is None:
-        # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
-        return await callback.answer()
-    if user_admin is None:
-        # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ в этой сетке</b>.")
-        return await callback.answer()
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ</b>.",
+            show_alert=True
+        )
+        return await callback.message.delete()
 
-    admin_tid = admin['admin_tid']
-    old_post = admin['post']
-    user_post = user_admin['post']
+    sender_post = sender_admin['post']
+    sender_post_str = post_str[sender_post]
+    target_tid = target_admin['admin_tid']
+    target_old_post = target_admin['post']
 
-    # Нужно проверить, вдруг у цели есть чаты в этой паутине.
+    # Проверка прав
+    ## Проверка на то, что отправитель является админом
+    if post_strint[sender_post] < 4:
+        return await callback.answer(
+            # Вывод
+            text=f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['admin']}</b>).",
+            show_alert=True
+        )
+
+    if target_old_post == "owner":
+        return await callback.answer(
+            # Вывод
+            text="Нельзя менять права владельцу паутины.",
+            show_alert=True
+        )
+
+    ## Нужно проверить, вдруг у цели есть чаты в этой паутине
     await db.cur.execute(
         "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
-        (admin_tid, web_id)
+        (target_tid, web_id)
     )
     is_target_have_chats = await db.cur.fetchall()
     if is_target_have_chats:
@@ -543,39 +575,33 @@ async def admin_down(callback: CallbackQuery):
                 "Для начала исключите его чаты из паутины."
             ),
             show_alert=True
-        ) 
-
-    if post_strint[user_post] < 3:
-        # Понижать других админов можно только начиная с ранга Хелпер
-        return await callback.answer(f"Недостаточно прав ({post_str[user_post]}/{post_str['helper']})") # Вывод
-
-    if old_post == "owner":
-        return await callback.answer(
-            # Вывод
-            text="Нельзя менять права владельцу паутины.",
-            show_alert=True
         )
 
-    elif old_post == "helper":
-        if user_post != "owner":
+    elif target_old_post == "admin":
+        if sender_post != "owner":
             return await callback.answer(
                 # Вывод
-                text="Понижать хелперов может только владелец паутины.",
+                text="Вы не можете менять права админу, который выше или равен Вам по должности.",
+                show_alert=True
+            )
+        else:
+            return await callback.answer(
+                text=(
+                    # Вывод
+                    "В одной паутине может быть только один владелец.\n"
+                    "Если Вы хотите передать этому человеку права на паутину, то нажмите на соответствующую кнопку."
+                ),
                 show_alert=True
             )
 
-    elif old_post == "moder":
-        return await callback.answer(
-            text="Если Вы хотите снять этого человека с должности, то нажмите на соответствующую кнопку.",
-            show_alert=True
-        )
+    elif target_old_post == "helper":
+        return await admin_fire(callback)
 
-    new_post = post_intstr[post_strint[old_post] - 1]
-    result = await db.upd_admin_post(admin_tid, web_id, new_post)
-    if not result:
-        return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
+    target_new_post = post_intstr[post_strint[target_old_post] - 1]
+    result = await db.upd_admin_post(target_tid, web_id, target_new_post)
+    if not result: return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
 
-    await admin_output(admin, admin_tid, new_post, web['heir_tid'], callback) # Вывод
+    await admin_output(target_admin, target_new_post, web['heir_tid'], callback) # Вывод
 
 # Снятие конкретного админа
 # Снимать админов можно начиная с ранга хелпера.
@@ -583,37 +609,61 @@ async def admin_down(callback: CallbackQuery):
 
 @rt.callback_query(F.data.startswith("fire_"))
 async def admin_fire(callback: CallbackQuery):
-    user_tid = callback.from_user.id
-    admin_id = callback.data.split("_")[-1]
+    sender_tid = callback.from_user.id
+    target_id = callback.data.split("_")[-1]
 
-    web = await db.get_web_by_owner_tid(user_tid)
-    web_id = web['web_id']
-    admin = await db.get_admin(admin_id)
-    user_admin = await db.get_admin_by_tid(user_tid, web_id)
-
+    target_admin = await db.get_admin(target_id)
+    if target_admin is None:
+        # Вывод
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.",
+            show_alert=True
+        )
+        return await callback.message.delete()
+    web = await db.get_web(target_admin['web_id'])
     if web is None:
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>этой паутины не существует</b>."
+        )
+        return await callback.message.delete()
+    web_id = web['web_id']
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if sender_admin is None:
         # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
-        return await callback.answer()
-    if admin is None:
-        # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этого админа не существует</b>.")
-        return await callback.answer()
-    if user_admin is None:
-        # Вывод
-        await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ в этой сетке</b>.")
-        return await callback.answer()
+        await callback.answer(
+            text="Произошла либо <b>непредвиденная ошибка</b>, либо <b>вы не админ</b>.",
+            show_alert=True
+        )
+        return await callback.message.delete()
 
+    sender_post = sender_admin['post']
+    sender_post_str = post_str[sender_post]
+    target_tid = target_admin['admin_tid']
+    target_old_post = target_admin['post']
     heir_tid = web['heir_tid']
-    admin_tid = admin['admin_tid']
-    post = admin['post']
-    user_post = user_admin['post']
 
-    # Нужно проверить, вдруг у цели есть чаты в этой паутине
-    is_target_have_chats = await db.cur.execute(
+    # Проверка прав
+    ## Проверка на то, что отправитель является админом
+    if post_strint[sender_post] < 4:
+        return await callback.answer(
+            # Вывод
+            text=f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['admin']}</b>).",
+            show_alert=True
+        )
+
+    if target_old_post == "owner":
+        return await callback.answer(
+            # Вывод
+            text="Нельзя менять права владельцу паутины.",
+            show_alert=True
+        )
+
+    ## Нужно проверить, вдруг у цели есть чаты в этой паутине
+    await db.cur.execute(
         "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
-        (admin_tid, web_id)
+        (target_tid, web_id)
     )
+    is_target_have_chats = await db.cur.fetchall()
     if is_target_have_chats:
         return await callback.answer(
             # Вывод
@@ -622,50 +672,34 @@ async def admin_fire(callback: CallbackQuery):
                 "Для начала исключите его чаты из паутины."
             ),
             show_alert=True
-        ) 
+        )
 
-    if post_strint[user_post] < 3:
-        # Снимать других админов можно только начиная с ранга Хелпер
-        return await callback.answer(f"Недостаточно прав ({post_str[user_post]}/{post_str['helper']})") # Вывод
-
-    if post == "owner":
+    elif target_old_post == "admin" and sender_post != "owner":
         return await callback.answer(
             # Вывод
-            text="У паутины обязан быть владелец.",
+            text=f"Снять <b>{post_str['admin']}а</b> может только <b>{post_str['owner']}</b>.",
             show_alert=True
-        )
-    elif post == "helper":
-        if user_post != "owner":
-            return await callback.answer(
-                # Вывод
-                text="Снимать хелперов может только владелец паутины.",
-                show_alert=True
             )
 
-    if heir_tid == admin_tid:
+    if heir_tid == target_tid:
         # Если админ является наследником, то снять его может только владелец паутины.
         # После снятия наследника также показ предупреждения
-        if user_post != "owner":
+        if sender_post != "owner":
             return await callback.answer(
                 # Вывод
-                text="Снять наследника может только владелец паутины.",
+                text=f"Снять <b>{post_str['heir']}а</b> может только <b>{post_str['owner']}</b>.",
                 show_alert=True
             )
         await db.upd_web_heir(web_id, None)
         await callback.answer(
-            text=(
-                "Предупреждение: этот админ являлся наследником. "
-                "После его снятия требуется назначить нового наследника."
-            ),
+            text=f"Предупреждение: этот админ являлся {post_str['heir']}ом. Не забудьте назначить нового.",
             show_alert=True
         )
 
-    result = await db.rm_admin(admin_tid, web_id)
+    result = await db.rm_admin(target_tid, web_id)
+    if not result: return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
 
-    if not result:
-        return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
-
-    await admins(callback)
+    await admins(callback) # Вывод
 
 # Сделать конкретного админа наследником
 # Назначать наследника паутины может только её владелец
@@ -712,10 +746,9 @@ async def admin_heir(callback: CallbackQuery):
 
     result = await db.upd_web_heir(web_id, admin_tid)
 
-    if not result:
-        return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
+    if not result: return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
 
-    await admin_output(admin, admin_tid, admin['post'], admin_tid, callback) # Вывод
+    await admin_output(admin, admin['post'], admin_tid, callback) # Вывод
 
 # Передать права владельния паутиной другому админу
 # Передавать право владения паутиной может только её владелец
@@ -769,12 +802,11 @@ async def admin_transfer(callback: CallbackQuery):
 
     result = await db.upd_web_owner(web_id, admin_tid, user_tid)
 
-    if not result:
-        return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
+    if not result: return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
 
     # Вывод
-    await callback.message.delete()
     await callback.message.answer("📤 Теперь эта паутина <b>не принадлежит</b> Вам!")
+    await callback.message.delete()
 
 #############################################
 #   Жалобы                                  #
@@ -1040,12 +1072,14 @@ async def report_check(callback: CallbackQuery):
     report_id = callback.data.split("_")[-1]
     report = await db.get_report(report_id)
     if report is None:
-        await callback.message.delete()
-        return await callback.answer("Жалоба не найдена")
+        await callback.answer("Жалоба не найдена")
+        return await callback.message.delete()
     sender_tid = report['sender_tid']
     target_tid = report['target_tid']
     sender = await db.get_user_by_tid(sender_tid)
     target = await db.get_user_by_tid(target_tid)
+    admin  = await db.mk_user(callback.from_user)
+
     web_id = report['web_id']
     web = await db.get_web(web_id)
     web_admin_chat_tid = web['admin_chat_tid']
@@ -1065,14 +1099,16 @@ async def report_check(callback: CallbackQuery):
 
     # Вывод
     try:
+        chat_user = await db.get_user_by_tid(report['chat_tid'])
+
         await bot.edit_message_text(
             chat_id=web_admin_chat_tid,
             message_id=report['message_tid_bot_admin'],
             text=(
                 f"✅ Жалоба на {target['link']} проверена (#{report['report_id']})\n"
                 f"🆔 <code>@{target_tid}</code>\n"
-                f"🗣 Отправил {sender['link']}\n"
-                f"🛡️ Проверил {target['link']}\n"
+                f"🗣 Отправил {sender['link']} из чата {chat_user['link']}\n"
+                f"🛡️ Проверил {admin['link']}\n"
                 f"<blockquote>{report['reason']}</blockquote>"
             )
         )

@@ -23,10 +23,11 @@ async def button_go_back(inline_keyboard: InlineKeyboardBuilder) -> InlineKeyboa
 ####################
 
 prefixes = {
-    "owner": "👑",
-    "helper": "3️⃣",
-    "admin": "2️⃣",
-    "moder": "1️⃣"
+    "owner": "🤴",
+    "admin": "4️⃣",
+    "adminjr": "3️⃣",
+    "moder": "2️⃣",
+    "helper": "1️⃣",
 }
 
  # # # # # # # # # #

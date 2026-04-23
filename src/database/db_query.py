@@ -59,7 +59,7 @@ class Database():
         last_name = user.last_name if user else None
         full_name = user.full_name if user else first_name_title
         username = user.username if user else chat.username
-        link = f"<a href='https://t.me/{username}'>{full_name}</a>" if username else full_name
+        link = f"<a href='https://t.me/{username}'>{full_name}</a>" if username else f"<a href='tg://openmessage?user_id={str(tid).removeprefix("-100")}'>{full_name}</a>"
 
         try:
             if username is not None:
@@ -95,7 +95,16 @@ class Database():
             await self.cur.execute("SELECT * FROM users WHERE tid = %s", (tid,))
             return await self.cur.fetchone()
         except Exception as e:
-            print(f"error: database: get_username(): {e}")
+            print(f"error: database: get_user_by_tid(): {e}")
+            return None
+
+    async def get_user_by_username(self, username: str) -> dict:
+        '''Получает пользователя по @юзернейму'''
+        try:
+            await self.cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+            return await self.cur.fetchone()
+        except Exception as e:
+            print(f"error: database: get_user_by_username(): {e}")
             return None
 
     async def get_username(self, tid: int) -> str:
@@ -219,7 +228,7 @@ class Database():
                 heir_tid = None
 
             if old_owner_tid is not None:
-                await self.upd_admin_post(old_owner_tid, web_id, "helper")
+                await self.upd_admin_post(old_owner_tid, web_id, "admin")
 
                 # Если в паутине не назначен наследник,
                 # то старый владелец становится им
@@ -394,15 +403,25 @@ class Database():
         try:
             admin_id = await self.mkid("admins")
 
-            if post not in ("moder", "admin", "helper", "owner"):
-                # Если дана некорректная должность, то меняет её на модера
-                post = "moder"
+            if post not in ("helper", "moder", "adminjr", "admin", "owner"):
+                # Если дана некорректная должность, то меняет её на помощника
+                post = "helper"
             if post == "owner":
                 # Если мы создаём владельца в паутине, в которой он уже есть,
-                # то меняем ему должность на хелпера
+                # то меняем ему должность на администратора
                 await self.cur.execute("SELECT 1 FROM admins WHERE web_id = %s AND post = 'owner'", (web_id,))
-                if await self.cur.fetchone() is not None:
-                    post = "helper"
+                if await self.cur.fetchone():
+                    post = "admin"
+            # Проверка на то, что данный админ уже есть в данной паутине
+            await self.cur.execute(
+                "SELECT * FROM admins WHERE web_id = %s AND admin_tid = %s",
+                (web_id, admin_tid)
+            )
+            admin = await self.cur.fetchone()
+            if admin:
+                await self.cur.execute("UPDATE admins SET post = %s WHERE admin_id = %s", (admin['admin_id'],))
+                await self.conn.commit()
+                return admin
 
             await self.cur.execute(
                 "INSERT INTO admins (admin_id, admin_tid, web_id, post) VALUES (%s, %s, %s, %s) RETURNING *",
@@ -461,15 +480,15 @@ class Database():
     async def upd_admin_post(self, admin_tid: int, web_id: str, post: str) -> bool:
         '''Обновляет должность админа в конкретной паутине'''
         try:
-            if post not in ("moder", "admin", "helper", "owner"):
-                # Если дана некорректная должность, то меняет её на модера
-                post = "moder"
+            if post not in ("helper", "moder", "adminjr", "admin", "owner"):
+                # Если дана некорректная должность, то меняет её на помощника
+                post = "helper"
             if post == "owner":
                 # Если мы создаём владельца в паутине, в которой он уже есть,
-                # то меняем ему должность на хелпера
+                # то меняем ему должность на администратора
                 await self.cur.execute("SELECT 1 FROM admins WHERE web_id = %s AND post = 'owner'", (web_id,))
                 if await self.cur.fetchone() is not None:
-                    post = "helper"
+                    post = "admin"
 
             await self.cur.execute(
                 "UPDATE admins SET post = %s WHERE admin_tid = %s AND web_id = %s",
@@ -518,6 +537,9 @@ class Database():
             return None
         if date_until:
             date_until = datetime.fromtimestamp(date_until)
+        reason = reason.replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
+        if not reason:
+            reason = "Причина не указана."
 
         try:
             restr_id = await self.mkid("restrs")
@@ -578,6 +600,10 @@ class Database():
 
     async def upd_restr_reason(self, restr_id: str, reason: str) -> bool:
         '''Изменяет причину наказания'''
+        reason = reason.replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
+        if not reason:
+            reason = "Причина не указана."
+
         try:
             await self.cur.execute(
                 "UPDATE restrs SET reason = %s WHERE restr_id = %s",
@@ -631,13 +657,11 @@ class Database():
         target_tid = message_user.reply_to_message.from_user.id
         reason = message_user.text.split("\n", 1)
         if len(reason) == 2:
-            reason = reason[1].strip()
+            reason = reason[1].replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
         else:
-            reason = message_user.text.split(" ", 1)
-            if len(reason) == 2:
-                reason = reason[1].strip()
-            else:
-                reason = "Причина не указана."
+            reason = "Причина не указана."
+        if not reason:
+            reason = "Причина не указана."
 
         try:
             await self.cur.execute(

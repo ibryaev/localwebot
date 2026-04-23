@@ -2,6 +2,7 @@ from aiogram.types import User, Message, CallbackQuery
 from random import choice
 from datetime import datetime
 from babel.dates import format_datetime
+from string import digits
 from config import *
 
 async def rndemoji() -> str:
@@ -90,9 +91,6 @@ async def parse_time(time_str: str, timestamp: float = None) -> tuple[float, str
                 s = "месяца"
             else:
                 s = "месяцев"
-        case "год":
-            multiply = 31_536_000
-            s = "год"
         case _:
             return None
 
@@ -102,7 +100,7 @@ async def parse_time(time_str: str, timestamp: float = None) -> tuple[float, str
     date = timestamp + float(d * multiply)
     date_str = f"{d} {s}"
 
-    if date >= timestamp + (31_536_000.0 + 86_400.0):
+    if date >= timestamp + (31_536_000.0 + 86_401.0):
         date_str = "бессрочно"
     elif date < timestamp + 30.0:
         date = timestamp + 60.0
@@ -110,21 +108,32 @@ async def parse_time(time_str: str, timestamp: float = None) -> tuple[float, str
 
     return date, date_str
 
-async def grep_username(text: str, split_sep: str = " ", split_maxsplit: int = -1) -> str:
-    '''Парсит текст на начилие ОДНОГО Telegram @юзернейма'''
+async def grep_username(text: str, no_clean: bool = False, split_sep: str = " ", split_maxsplit: int = -1) -> str:
+    '''Парсит текст на начилие ОДНОГО Telegram @юзернейма, который встречается в нём первым'''
     text = text.split(split_sep, split_maxsplit)
 
     for word in text:
-        if word.startswith("@"):
-            username = word.removeprefix("@")
+        if word.startswith(("@", "tg://openmessage?user_id=")) or "t.me/" in word:
+            username = word.removeprefix("@").removeprefix("tg://openmessage?user_id=").removeprefix("https://t.me/").removeprefix("t.me/")
 
-            for mark in punctuation:
-                if mark in username:
+            for punctuation_mark in punctuation:
+                if punctuation_mark in username:
                     return None
 
-            for letter in cyrillic_letters:
-                if letter in username:
+            for cyrillic_letter in cyrillic_letters:
+                if cyrillic_letter in username:
                     return None
+
+            if username.startswith("_"):
+                return None
+
+            if not username.isdigit():
+                for digit in digits:
+                    if username.startswith(digit):
+                        return None
+
+            if no_clean:
+                return word
 
             return username
 
@@ -145,3 +154,63 @@ async def on_every_message(message: Message = None, callback: CallbackQuery = No
         await db.mk_user(user=callback.from_user)
         if callback.message.chat.type in ("group", "supergroup"):
             await db.mk_user(chat=callback.message.chat)
+
+async def get_sender_and_target(message: Message) -> tuple[dict, dict]:
+    # Создание/поиск отправителя в БД
+    sender_user = await db.mk_user(user=message.from_user)
+
+    # Поиск получателя
+    target_user = {}
+    if message.reply_to_message:
+        target_user = await db.mk_user(user=message.reply_to_message.from_user)
+    else:
+        # Если сообщение не ответ, то парсинг соо
+        target_username = await grep_username(message.text.split("\n")[0]) # Попытка найти в тексте @юзернейм (grep_username())
+        if target_username is None:
+            # @юз не найден
+            await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+            return None
+        elif target_username.isdigit():
+            # Если найденный @юз является TID
+            target_user = await db.get_user_by_tid(int(target_username))
+        else:
+            # @юз найден
+            target_user = await db.get_user_by_username(target_username)
+
+    # Проверка на наличие всех нужных записей
+    if None in (target_user, sender_user): # LOL      hoiv yv8ty gvgb0ujnu 9hb97yb         --- Серафим даун 4/14/26
+        await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+        return None
+
+    return sender_user, target_user
+
+async def get_chat_and_web(message: Message) -> tuple[dict, dict]:
+    # Получение чата из таблиц users & chats
+    chat = await db.get_chat(message.chat.id)
+    if chat is None:
+        await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>этот чат не состоит ни в какой паутине</b>.") # Вывод
+        return {}, {}
+    # Получаю паутину
+    web = await db.get_web(chat['web_id'])
+    if web is None:
+        await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return {}, chat
+
+    return chat, web
+
+async def mk_chats_tid_str(chats_tid: list[int], admin_chat_tid: int) -> str:
+    chats_tid_str = ""
+    if not chats_tid:
+        chats_tid_str = "<b>В этой паутине нет чатов.</b>"
+    else:
+        seq = 1
+        for chat_tid in chats_tid:
+            chat = await db.get_user_by_tid(chat_tid)
+            chat_link = chat['link']
+            chats_tid_str += f"{seq}. <b>{chat_link}</b>"
+            if admin_chat_tid == chat_tid:
+                chats_tid_str += " <i>(адм)</i>"
+            chats_tid_str += "\n"
+            seq += 1
+
+    return chats_tid_str

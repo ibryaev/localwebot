@@ -33,31 +33,45 @@ BOT_USERNAME = "localwebot"
 BOT_FULL_NAME = "Setka (Localweb) — Бот для создания сеток чатов"
 
 post_str = {
-    # Преобразует тех. название должности админа в пользовательское
-    "owner": "Владелец",
-    "helper": "Хелпер",
-    "admin": "Админ",
-    "moder": "Модер",
+    # Преобразует технические названия должности админа в пользовательские
+    "owner": "Владелец паутины",
+    "heir": "Наследник",
+    "admin": "Администратор",
+    "adminjr": "Младший администратор",
+    "moder": "Модератор",
+    "helper": "Помощник",
     "user": "Пользователь"
 }
+post_strstr = {
+    # Преобразует пользовательские названия должности админа в технические
+    post_str['owner']: "owner",
+    post_str['heir']: "heir",
+    post_str['admin']: "admin",
+    post_str['adminjr']: "adminjr",
+    post_str['moder']: "moder",
+    post_str['helper']: "helper",
+    post_str['user']: "user"
+}
 post_intstr = {
-    # Преобразует цифру 0-4 в должность админа (по иерархии)
-    4: "owner",
-    3: "helper",
-    2: "admin",
-    1: "moder",
+    # Преобразует цифру 0-5 в должность админа (по иерархии)
+    5: "owner",
+    4: "admin",
+    3: "adminjr",
+    2: "moder",
+    1: "helper",
     0: "user"
 }
 post_strint = {
-    # Преобразует должность админа в цифру 0-4 (по иерархии)
-    "owner": 4,
-    "helper": 3,
-    "admin": 2,
-    "moder": 1,
+    # Преобразует должность админа в цифру 0-5 (по иерархии)
+    "owner": 5,
+    "admin": 4,
+    "adminjr": 3,
+    "moder": 2,
+    "helper": 1,
     "user": 0
 }
 
-punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^`{|}~ """      # Используется только в transfer_msg_owner_tid() #
-cyrillic_lowercase = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'                                                    # Взяты из библиотеки (модуля)
-cyrillic_uppercase = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'                                                    # string и адатированы
-cyrillic_letters = cyrillic_lowercase + cyrillic_uppercase # Используется только в transfer_msg_owner_tid() #
+punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^`{|}~ """
+cyrillic_lowercase = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
+cyrillic_uppercase = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'
+cyrillic_letters = cyrillic_lowercase + cyrillic_uppercase

@@ -31,7 +31,7 @@
   - [x] Gban  ([62e448f](https://github.com/ibryaev/localwebot/commit/62e448ff809c4de3b8efa19d5eaa300cac5e737a))
   - [X] Gkick ([99bacc7](https://github.com/ibryaev/localwebot/commit/99bacc765792186f314db41b28f183ece0ded4de))
 - [x] Add ability to view web's chats list from chat from this web ([b8f8089](https://github.com/ibryaev/localwebot/commit/b8f8089c4fd785c5ef52b07b57d2b0950b3891cf))
-- [ ] ~~Add function for chats list formatting (Формируем список чатов)~~
+- [x] Add function for chats list formatting (Формируем список чатов)
 - [x] Restrict to report, (pro/de)mote & etc. actions with the bot ([76098b0](https://github.com/ibryaev/localwebot/commit/76098b0763ae27b309b769c4c18c6787bc4903a3))
 - [ ] Add link to admin's message when restricting user 
 - [x] Add ability to view admins list from chat                    ([010066c](https://github.com/ibryaev/localwebot/commit/010066c533488a16f0e415966be5c30f9a34d74e))
