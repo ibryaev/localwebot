@@ -44,34 +44,24 @@ async def ping(message: Message):
 async def get_web(message: Message):
     # Получение данных из БД
     user = await db.mk_user(user=message.from_user)
-    web = await db.get_web_by_owner_tid(message.from_user.id)
+    if user is None: return await message.answer("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    ## Проверка на наличие запрошенных данных в БД
-    if None in (user, web):
-        return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
+    if message.chat.type in ("group", "supergroup"):
+        # Получение чата и паутины
+        chat_and_web = await get_chat_and_web(message)
+        if chat_and_web is None:
+            return
+        chat, web = chat_and_web
+        if message.chat.id != web['admin_chat_tid']:
+            return
+    elif message.chat.type == "private":
+        web = await db.get_web_by_owner_tid(message.from_user.id)
+        if web is None: return await message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.") # Вывод
 
     # Вывод
-    ## Формирование списка чатов
-    chats_tid = web['chats_tid']
-    chats_tid_str = ""
-    if not chats_tid:
-        chats_tid_str = "<b>В этой паутине нет чатов.</b>"
-    else:
-        seq = 1
-        for chat_tid in chats_tid:
-            chat = await db.get_user_by_tid(chat_tid)
-            if chat is None: # Теоритически это невозможно. Добавляя чат в паутины, запись в БД обязана быть
-                chat_link = f"@{chat_tid}"
-            else:
-                chat_link = chat['link']
-            chats_tid_str += f"{seq}. <b>{chat_link}</b>"
-            if web['admin_chat_tid'] == chat_tid:
-                chats_tid_str += " <i>(адм)</i>"
-            chats_tid_str += "\n"
-            seq += 1
-
-    ## Итоговый вывод
     emoji = web['emoji'] or await rndemoji()
+    owner_tid = web['owner_tid']
+    owner = await db.get_user_by_tid(owner_tid)
     if web['heir_tid']:
         heir = await db.get_user_by_tid(web['heir_tid'])
         heir_link = heir['link']
@@ -79,11 +69,12 @@ async def get_web(message: Message):
         heir_link = "Отсутствует"
     descr = web['descr'] or "Описание отсутствует."
     date_reg = await parse_date(web['date_reg'])
+    chats_tid_str = await mk_chats_tid_str(web['chats_tid'], web['admin_chat_tid'])
 
     await message.answer(
         text=(
             f"{emoji} <b>{web['forename']}</b> (#{web['web_id']})\n"
-            f"Владелец: <b>{user['link']}</b> | Наследник: <b>{heir_link}</b>\n"
+            f"Владелец: <b>{owner['link']}</b> | Наследник: <b>{heir_link}</b>\n"
             f"Дата создания: <b>{date_reg}</b>\n"
             f"<blockquote>{descr}</blockquote>\n\n"
              "Чаты:\n"
@@ -671,6 +662,7 @@ async def gban(message: Message):
     if target_admin:
         result = await db.rm_admin(target_tid, web_id) # Если целевой пользователь являлся админом, то снимаем его
         if result is None: await message.reply("Человек успешно забанен, но по неизвестной причине с него не удалось снять админские права. Сделайте это вручную.") # Вывод
+    await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -876,6 +868,7 @@ async def gmute(message: Message):
     restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason, date_until)
     if restr is None:
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -1064,6 +1057,9 @@ async def gkick(message: Message):
         reason = f"{text_rows[1].strip()}{target_quote}"
 
     # Непосредственное назначение наказания
+    ## Запись в БД
+    await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
+
     ## Бан и мгновенный разбан во всех чатах паутины
     chats_tid = web['chats_tid']
     for chat_tid in chats_tid:
@@ -1182,6 +1178,7 @@ async def chats_tid(message: Message):
     msg = await message.reply("Подождите, идёт загрузка...") # Пока формируется список чатов паутины
     emoji = web['emoji'] or await rndemoji()
     chats_tid_str = await mk_chats_tid_str(web['chats_tid'], web['admin_chat_tid'])
+
     await msg.edit_text(
         text=(
             f"{emoji} Чаты паутины <b>{web['forename']}</b>\n\n"
@@ -1417,11 +1414,11 @@ async def main(message: Message):
 
     if msgtextcf in ("бот", "кинг", "пинг", "пиу", "пиф", "пук"):
         return await ping(message)
+    if msgtext in ("🗂️ Мои паутины", "админ панель"):
+            return await get_web(message)
 
     elif message.chat.type == "private":
-        if msgtext == "🗂️ Мои паутины":
-            return await get_web(message)
-        elif msgtext[2:] == "Создать паутину" or message.text[3:] == "Создать паутину":
+        if msgtext[2:] == "Создать паутину" or message.text[3:] == "Создать паутину":
             return await mk_web(message)
         elif msgtext == "➕ Добавить в чат":
             return await add_to_chat(message)

@@ -31,7 +31,7 @@
   - [x] Gban  ([62e448f](https://github.com/ibryaev/localwebot/commit/62e448ff809c4de3b8efa19d5eaa300cac5e737a))
   - [X] Gkick ([99bacc7](https://github.com/ibryaev/localwebot/commit/99bacc765792186f314db41b28f183ece0ded4de))
 - [x] Add ability to view web's chats list from chat from this web ([b8f8089](https://github.com/ibryaev/localwebot/commit/b8f8089c4fd785c5ef52b07b57d2b0950b3891cf))
-- [x] Add function for chats list formatting (Формируем список чатов)
+- [x] Add function for chats list formatting (Формируем список чатов) ([0e078a9](https://github.com/ibryaev/localwebot/commit/0e078a956f8ed3aeab4878a2b8a60b247f0015a4))
 - [x] Restrict to report, (pro/de)mote & etc. actions with the bot ([76098b0](https://github.com/ibryaev/localwebot/commit/76098b0763ae27b309b769c4c18c6787bc4903a3))
 - [ ] Add link to admin's message when restricting user 
 - [x] Add ability to view admins list from chat                    ([010066c](https://github.com/ibryaev/localwebot/commit/010066c533488a16f0e415966be5c30f9a34d74e))
@@ -41,7 +41,8 @@
 - [x] Add more comments into (handlers.py)[src/bot/handlers.py]                          ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
 - [ ] Implement global warn (warns system)
 - [ ] Add more info in [README.md](README.md) like project's files structure schema
-- [x] Make `commands_list()` for handlers ("📚 Команды" command, from `main_menu()`-keyboard)
+- [x] Make `commands_list()` for handlers ("📚 Команды" command, from `main_menu()`-keyboard) ([abc7c5e](https://github.com/ibryaev/localwebot/commit/abc7c5e8e8e8c9de41ce70e64b1dfedf27f4f85a))
+  - [ ] This command is shit as well. Currently working on [teletype.in](blog.ourempire.ru) page
 - [x] Restrict to promote banned user                                                    ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
 - [x] Replace `.answer()` for group chat commands with `.reply()`                        ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
 - [x] Restrict restricted user when he joined the chat in the web where he is restricted ([4206fd1](https://github.com/ibryaev/localwebot/commit/4206fd1976c0839c29bcdd302f22fe071adfff5b))
@@ -50,4 +51,5 @@
 - [x] Add a command to view a list of all unclosed reports        ([956e526](https://github.com/ibryaev/localwebot/commit/956e5260246f34af9ebdce96b32dffccbc11707a))
 - [x] Prevent the chat owner from being demoted                   ([956e526](https://github.com/ibryaev/localwebot/commit/956e5260246f34af9ebdce96b32dffccbc11707a))
 - [ ] Add chat membership status for each admin in the "admins" command
-- [ ] Implement ability to view visual web panel from admin chat
+- [x] Implement ability to view visual web panel from admin chat
+- [x] Make `restrs_count` actually counts the given restrictions

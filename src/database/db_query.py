@@ -491,13 +491,26 @@ class Database():
                     post = "admin"
 
             await self.cur.execute(
-                "UPDATE admins SET post = %s WHERE admin_tid = %s AND web_id = %s",
-                (post, admin_tid, web_id)
+                "UPDATE admins SET post = %s WHERE web_id = %s AND admin_tid = %s",
+                (post, web_id, admin_tid)
             )
             await self.conn.commit()
             return True
         except Exception as e:
             print(f"error: database: upd_admin_post(): {e}")
+            await self.conn.rollback()
+            return False
+
+    async def upd_plus_restrs_count(self, admin_tid: int, web_id: str, restrs_count: int) -> bool:
+        try:
+            await self.cur.execute(
+                "UPDATE admins SET restrs_count = %s WHERE web_id = %s AND admin_tid = %s",
+                (restrs_count + 1, web_id, admin_tid)
+            )
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_plus_restrs_count(): {e}")
             await self.conn.rollback()
             return False
 
