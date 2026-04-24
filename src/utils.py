@@ -179,12 +179,15 @@ async def get_sender_and_target(message: Message) -> tuple[dict, dict]:
                 await sleep(2)
                 try:
                     target_user = await bot.get_chat(target_username)
+                    target_user = await db.mk_user(user=target_user)
                 except TelegramBadRequest or TelegramForbiddenError or target_user is None and message.chat.type in ("group", "supergroup"):
                     # Если не получилось получить через get_chat(), то,
                     # в случае если это групповой чат, попытка найти человека через метод get_chat_member()
                     await sleep(2)
                     try:
                         target_user = await bot.get_chat_member(message.chat.id, target_username)
+                        target_user = target_user.user
+                        target_user = await db.mk_user(user=target_user)
                     except TelegramBadRequest or TelegramForbiddenError:
                         target_user = None
         else:
