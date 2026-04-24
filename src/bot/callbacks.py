@@ -188,7 +188,7 @@ async def remove(callback: CallbackQuery):
         if callback.from_user.id != web['owner_tid']:
             return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
-        web = await db.get_web_by_owner_tid(callback.message.from_user.id)
+        web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
             # Вывод
             await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -234,7 +234,7 @@ async def transfer(callback: CallbackQuery, state: FSMContext):
         if callback.from_user.id != web['owner_tid']:
             return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
-        web = await db.get_web_by_owner_tid(callback.message.from_user.id)
+        web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
             # Вывод
             await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -314,7 +314,7 @@ async def rm_admin_chat(callback: CallbackQuery):
         if callback.from_user.id != web['owner_tid']:
             return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
-        web = await db.get_web_by_owner_tid(callback.message.from_user.id)
+        web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
             # Вывод
             await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -367,7 +367,7 @@ async def rm_heir(callback: CallbackQuery):
         if callback.from_user.id != web['owner_tid']:
             return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
-        web = await db.get_web_by_owner_tid(callback.message.from_user.id)
+        web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
             # Вывод
             await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -418,7 +418,7 @@ async def admins(callback: CallbackQuery):
             return
         chat, web = chat_and_web
     elif callback.message.chat.type == "private":
-        web = await db.get_web_by_owner_tid(callback.message.from_user.id)
+        web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
             # Вывод
             await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -456,7 +456,7 @@ async def admin(callback: CallbackQuery):
             return
         chat, web = chat_and_web
     elif callback.message.chat.type == "private":
-        web = await db.get_web_by_owner_tid(callback.message.from_user.id)
+        web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
             # Вывод
             await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -847,7 +847,7 @@ async def admin_transfer(callback: CallbackQuery):
         if callback.from_user.id != web['owner_tid']:
             return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
-        web = await db.get_web_by_owner_tid(callback.message.from_user.id)
+        web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
             # Вывод
             await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
@@ -1258,7 +1258,7 @@ async def get_web(callback: CallbackQuery):
             return
         chat, web = chat_and_web
     elif callback.message.chat.type == "private":
-        web = await db.get_web_by_owner_tid(callback.message.from_user.id)
+        web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
             # Вывод
             await callback.message.answer("Произошла либо <b>непредвиденная ошибка</b>, либо <b>у Вас нет паутины</b>.")
