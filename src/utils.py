@@ -1,8 +1,10 @@
 from aiogram.types import User, Message, CallbackQuery
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from random import choice
 from datetime import datetime
 from babel.dates import format_datetime
 from string import digits
+from asyncio import sleep
 from config import *
 
 async def rndemoji() -> str:
@@ -14,15 +16,14 @@ async def rndemoji() -> str:
 
 async def parse_date(date: float, format: str = "d MMMM, yyyy г.") -> str:
     '''Получает сырой unix timestamp, возвращает string используя форматирование ``d MMMM, yyyy г.`` (на русском)'''
-    if date == 1: 
-        return "бессрочно"
-    
     try:
-        date = datetime.fromtimestamp(date)
+        date = datetime.fromtimestamp(date, tz)
     except TypeError:
+        if date is None:
+            return "бессрочно"
         pass
 
-    return format_datetime(date, format=format, locale="ru")
+    return format_datetime(date, format, locale="ru")
 
 async def get_chat_owner(chat_tid: int) -> User:
     '''Возвращает владельца данного чата'''
@@ -34,12 +35,12 @@ async def get_chat_owner(chat_tid: int) -> User:
 async def mklink(full_name: str, username: str) -> str:
     return f"<a href='https://t.me/{username}'>{full_name}</a>" if username else full_name
 
-async def parse_time(time_str: str, timestamp: float = None) -> tuple[float, str]:
+async def parse_time(time_str: list[str, str], timestamp: float = None) -> tuple[float, str]:
     '''
     Конвертирует время из формата например "30 мин" в timestamp.  
     Если указать ``timestamp``, то функция вернёт ``timestamp + time_str``. Иначе ``datime.now().timestamp() + time_str``
     '''
-    time_str = time_str.split(" ")
+    time_str = time_str[1].split(" ")
 
     if len(time_str) != 2:
         return None
@@ -95,7 +96,7 @@ async def parse_time(time_str: str, timestamp: float = None) -> tuple[float, str
             return None
 
     if timestamp is None:
-        timestamp = datetime.now().timestamp()
+        timestamp = datetime.now(tz).timestamp()
 
     date = timestamp + float(d * multiply)
     date_str = f"{d} {s}"
@@ -168,11 +169,24 @@ async def get_sender_and_target(message: Message) -> tuple[dict, dict]:
         target_username = await grep_username(message.text.split("\n")[0]) # Попытка найти в тексте @юзернейм (grep_username())
         if target_username is None:
             # @юз не найден
-            await message.reply("Произошла либо <b>непредвиденная ошибка</b>, либо <b>пользователь не найден</b>.") # Вывод
+            await message.reply("Нужно ответить на сообщение нужного пользователя или указать в сообщении его @юзернейм или @телеграмайди.") # Вывод
             return None
         elif target_username.isdigit():
             # Если найденный @юз является TID
-            target_user = await db.get_user_by_tid(int(target_username))
+            target_user = await db.get_user_by_tid(int(target_username)) # Сначала попытка найти в БД
+            if target_user is None:
+                # Если нет в БД, то обращение к Telegram API методу get_chat()
+                await sleep(2)
+                try:
+                    target_user = await bot.get_chat(target_username)
+                except TelegramBadRequest or TelegramForbiddenError or target_user is None and message.chat.type in ("group", "supergroup"):
+                    # Если не получилось получить через get_chat(), то,
+                    # в случае если это групповой чат, попытка найти человека через метод get_chat_member()
+                    await sleep(2)
+                    try:
+                        target_user = await bot.get_chat_member(message.chat.id, target_username)
+                    except TelegramBadRequest or TelegramForbiddenError:
+                        target_user = None
         else:
             # @юз найден
             target_user = await db.get_user_by_username(target_username)

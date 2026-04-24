@@ -3,6 +3,7 @@ from psycopg.rows import dict_row
 from aiogram.types import User, Chat, Message
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from emoji import is_emoji
 from random import choice
 from string import ascii_letters, digits
@@ -549,7 +550,7 @@ class Database():
         if restr not in ("ban", "mute"):
             return None
         if date_until:
-            date_until = datetime.fromtimestamp(date_until)
+            date_until = datetime.fromtimestamp(date_until, ZoneInfo("Europe/Moscow"))
         reason = reason.replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
         if not reason:
             reason = "Причина не указана."
@@ -634,7 +635,7 @@ class Database():
         try:
             await self.cur.execute(
                 "UPDATE restrs SET date_until = %s WHERE restr_id = %s",
-                (datetime.fromtimestamp(date_until), restr_id)
+                (datetime.fromtimestamp(date_until, ZoneInfo("Europe/Moscow")), restr_id)
             )
             await self.conn.commit()
             return True

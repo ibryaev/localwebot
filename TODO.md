@@ -46,10 +46,12 @@
 - [x] Restrict to promote banned user                                                    ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
 - [x] Replace `.answer()` for group chat commands with `.reply()`                        ([b663572](https://github.com/ibryaev/localwebot/commit/b663572b9ff7aa5ecd3039db61d3472481d17fd7))
 - [x] Restrict restricted user when he joined the chat in the web where he is restricted ([4206fd1](https://github.com/ibryaev/localwebot/commit/4206fd1976c0839c29bcdd302f22fe071adfff5b))
-- [x] Add from-chat name in the report message sended in the admin chat
+- [x] Add from-chat name in the report message sended in the admin chat ([73e70b3](https://github.com/ibryaev/localwebot/commit/73e70b3d695113971ec77a7e9445f1a063bec7db))
 - [x] Add a command to view all restrictions for a specific user  ([956e526](https://github.com/ibryaev/localwebot/commit/956e5260246f34af9ebdce96b32dffccbc11707a))
 - [x] Add a command to view a list of all unclosed reports        ([956e526](https://github.com/ibryaev/localwebot/commit/956e5260246f34af9ebdce96b32dffccbc11707a))
 - [x] Prevent the chat owner from being demoted                   ([956e526](https://github.com/ibryaev/localwebot/commit/956e5260246f34af9ebdce96b32dffccbc11707a))
 - [ ] Add chat membership status for each admin in the "admins" command
-- [x] Implement ability to view visual web panel from admin chat
-- [x] Make `restrs_count` actually counts the given restrictions
+- [x] Implement ability to view visual web panel from admin chat  ([92d9195](https://github.com/ibryaev/localwebot/commit/92d9195af8959a7c8f2a0696ca072bbbc84e7785))
+- [x] Make `restrs_count` actually counts the given restrictions  ([92d9195](https://github.com/ibryaev/localwebot/commit/92d9195af8959a7c8f2a0696ca072bbbc84e7785))
+- [x] Add new post to admins ierarchy                             ([0e078a9](https://github.com/ibryaev/localwebot/commit/0e078a956f8ed3aeab4878a2b8a60b247f0015a4))
+  - [x] Fully adapdate code to new admins ierarchy (fix bugs)

@@ -4,6 +4,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 
 from dotenv import load_dotenv; load_dotenv()
 from os import getenv
+from zoneinfo import ZoneInfo
 
 from database import Database
 
@@ -17,7 +18,7 @@ DB_PORT=getenv('DB_PORT')
 DB_USER=getenv('DB_USER')
 DB_PASSWORD=getenv('DB_PASSWORD')
 
-# Создание объекта бота и базы данных
+# Создание объекта бота, базы данных и часового пояса
 
 bot = Bot(
     token=BOT_TOKEN,
@@ -31,6 +32,7 @@ bot = Bot(
     )
 )
 db = Database()
+tz = ZoneInfo("Europe/Moscow")
 
 # Данные бота (чтобы на вызывать bot.get_me())
 

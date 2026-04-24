@@ -1,9 +1,8 @@
 from aiogram import Router, F
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart
 from aiogram.types import Message, ChatPermissions
-from aiogram.fsm.context import FSMContext
 from datetime import datetime
-from random import randint
+from asyncio import sleep
 
 from config import *
 from utils import *
@@ -350,14 +349,15 @@ async def admin_up(message: Message):
 
     # Получаю данные админов (отправителя и цели)
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    sender_post_str = post_str[sender_admin['post']] if sender_admin and sender_admin['post'] else post_str["user"]
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
 
     # Проверка прав
-    ## Проверка на то, что отправитель является админом
-    if sender_admin is None or post_strint[sender_admin['post']] < 4:
-        sender_admin_poststr = post_str[sender_admin['post']] if sender_admin else post_str["user"]
-        return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['admin']}</b>).") # Вывод
+    ## Проверка на то, что отправитель является админом и имеет достаточно прав
+    if sender_admin is None or post_strint[sender_admin['post']] < 3:
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['adminjr']}</b>).") # Вывод
 
+    ## Проверка на то, что получатель не забанен
     target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
     if target_restrs:
         for restr in target_restrs:
@@ -367,29 +367,32 @@ async def admin_up(message: Message):
     if target_admin is None:
         result = await db.mk_admin(target_tid, web_id, post_intstr[1])
         if result is None: return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
-        return await message.reply(f"🛡 {target_user['link']} назначен <b>{post_str[post_intstr[1]]}ом</b> паутины!") # Вывод
+        return await message.reply(f"🛡 {target_user['link']} назначен <b>{post_str['moder']}ом</b> паутины!") # Вывод
 
-    ## Получатель является админом
     sender_post = sender_admin['post'] # Должность отправителя
     target_post = target_admin['post'] # Должность получателя
 
+    # Иерархические проверки
     if target_post == "owner":
         return await message.reply("Нельзя менять права владельцу паутины.") # Вывод
 
     elif target_post == "admin":
         if sender_post != "owner":
-            return await message.reply("Вы не можете менять права админу, который выше или равен Вам по должности.") # Вывод
+            return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['owner']}</b>).") # Вывод
         else:
             return await message.reply(
+                # Вывод
                 text=(
-                    # Вывод
                     "В одной паутине может быть только один владелец.\n"
                     "Если Вы хотите передать этому человеку права на паутину, то сделайте это через админ-панель."
                 )
             )
 
     elif target_post == "adminjr" and sender_post != "owner":
-        return await message.reply(f"Назначить нового <b>{post_str['admin']}а</b> может только <b>{post_str['owner']}</b>.") # Вывод
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['owner']}</b>).") # Вывод
+
+    elif post_strint[target_post] >= 2 and post_strint[sender_post] < 4:
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['admin']}</b>).") # Вывод
 
     ## Повышаем ранг, уже непосредственно в БД
     new_post = post_intstr[post_strint[target_post] + 1]
@@ -425,20 +428,24 @@ async def admin_down(message: Message):
 
     # Получаю данные админов (отправителя и цели)
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    sender_post_str = post_str[sender_admin['post']] if sender_admin and sender_admin['post'] else post_str["user"]
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
 
     # Проверка прав
-    ## Проверка на то, что отправитель является админом
+    ## Проверка на то, что отправитель является админом и имеет достаточный ранг
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if sender_admin is None or post_strint[sender_admin['post']] < 4:
-        sender_admin_poststr = post_str[sender_admin['post']] if sender_admin else post_str["user"]
-        return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['admin']}</b>).") # Вывод
+    if sender_admin is None or post_strint[sender_admin['post']] < 3:
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['adminjr']}</b>).") # Вывод
 
     # Если target не админ, то с него "нечего брать"
     if target_admin is None:
         return await message.reply(f"Этот {post_str['user'].lower()} и так не админ.") # Вывод
 
-    # Нужно проверить, вдруг у цели есть чаты в этой паутине.
+    # Непосредственно логика повышения ранга
+    sender_post = sender_admin['post'] # Должность отправителя
+    target_post = target_admin['post'] # Должность получателя
+
+    ## Нужно проверить, вдруг у цели есть чаты в этой паутине.
     # Делаю прямой запрос в БД (без отдельной функции, т. к. это излишне)
     # 4/19/26 - В целом планирую сократить кол-во функций в db_query.py, если это возможно.
     # Проведу там код ревью (потом) TODO
@@ -447,28 +454,32 @@ async def admin_down(message: Message):
         (target_tid, web_id)
     )
     is_target_have_chats = await db.cur.fetchall()
-    if is_target_have_chats:
-        return await message.reply("У этого пользователя есть чаты в паутине, его нельзя снять или понизить.") # Вывод
+    if is_target_have_chats and post_strint[target_post] <= 3:
+        return await message.reply(
+            # Вывод
+            f"У этого пользователя есть чаты в паутине. Его нельзя снять или понизить на должность ниже {post_str['adminjr']}. "
+             "Для начала исключите его чаты из паутины."
+        )
 
-    # Непосредственно логика повышения ранга
-    sender_post = sender_admin['post'] # Должность отправителя
-    target_post = target_admin['post'] # Должность получателя
-    
+    # Иерархические проверки
     if target_post == "owner":
         return await message.reply("Нельзя менять права владельцу паутины.") # Вывод
 
     elif target_post == "admin" and sender_post != "owner":
-        return await message.reply(f"Понизить <b>{post_str['admin']}а</b> может только <b>{post_str['owner']}</b>.") # Вывод
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['owner']}</b>).") # Вывод
+
+    elif target_post == "adminjr" and post_strint[sender_post] < 4:
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['admin']}</b>).") # Вывод
 
     elif target_post == "helper":
-        return await admin_fire(message)
+        return await admin_fire(message) # Вывод
 
     ## Понижаем ранг, уже непосредственно в БД
     new_post = post_intstr[post_strint[target_post] - 1]
     result = await db.upd_admin_post(target_tid, web_id, new_post)
     if not result: return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    return await message.reply(f"⬇️ {target_user['link']} понижен до <b>{post_str[new_post]}а</b>!") # Вывод
+    await message.reply(f"⬇️ {target_user['link']} понижен до <b>{post_str[new_post]}а</b>!") # Вывод
 
 # Полное снятие админа с должности через текстовую команду (снять)
 # Прописать может только хелпер или владелец.
@@ -497,39 +508,42 @@ async def admin_fire(message: Message):
 
     # Получаю данные админов (отправителя и цели)
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    sender_post_str = post_str[sender_admin['post']] if sender_admin and sender_admin['post'] else post_str["user"]
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
 
     # Проверка прав
-    ## Проверка на то, что отправитель является админом
+    ## Проверка на то, что отправитель является админом и имеет достаточный ранг
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if sender_admin is None or post_strint[sender_admin['post']] < 4:
-        sender_admin_poststr = post_str[sender_admin['post']] if sender_admin else post_str["user"]
-        return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['admin']}</b>).") # Вывод
+    if sender_admin is None or post_strint[sender_admin['post']] < 3:
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['admin']}</b>).") # Вывод
 
     # Если target не админ, то с него "нечего брать"
     if target_admin is None:
         return await message.reply(f"Этот {post_str['user'].lower()} и так не админ.") # Вывод
-
-    # Нужно проверить, вдруг у цели есть чаты в этой паутине.
-    await db.cur.execute(
-        "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
-        (target_tid, web_id)
-    )
-    is_target_have_chats = await db.cur.fetchall()
-    if is_target_have_chats:
-        return await message.reply("У этого пользователя есть чаты в паутине, его нельзя снять или понизить.") # Вывод
 
     # Непосредственно логика повышения ранга
     sender_post = sender_admin['post'] # Должность отправителя
     target_post = target_admin['post'] # Должность получателя
     heir_tid = web['heir_tid']         # TID наследника паутины
 
+    ## Нужно проверить, вдруг у цели есть чаты в этой паутине.
+    await db.cur.execute(
+        "SELECT * FROM chats WHERE owner_tid = %s AND web_id = %s",
+        (target_tid, web_id)
+    )
+    is_target_have_chats = await db.cur.fetchall()
+    if is_target_have_chats and post_strint[target_post] <= 3:
+        return await message.reply("У этого пользователя есть чаты в паутине, его нельзя снять или понизить.") # Вывод
+
     # Иерархические проверки
     if target_post == "owner":
-        return await message.reply("У паутины обязан быть владелец.") # Вывод
+        return await message.reply("Нельзя менять права владельцу паутины.") # Вывод
 
-    if target_post == "admin" and sender_post != "owner":
-        return await message.reply( ) # Вывод
+    elif target_post == "admin" and sender_post != "owner":
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['owner']}</b>).") # Вывод
+
+    elif target_post == "adminjr" and post_strint[sender_post] < 4:
+        return await message.reply(f"Недостаточно прав (<b>{sender_post_str}</b>/<b>{post_str['admin']}</b>).") # Вывод
 
     # Непосредственно логика снятие админа
     ## Логика снятия наследника
@@ -546,8 +560,7 @@ async def admin_fire(message: Message):
     result = await db.rm_admin(target_tid, web_id)
     if not result: return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
-    # Вывод
-    return await message.reply(f"🔥 {target_user['link']} снят с должности!{heir_warning_text}")
+    await message.reply(f"🔥 {target_user['link']} снят с должности!{heir_warning_text}") # Вывод
 
 # # # # # # # # # # # # #
 #   Админские команды   #
@@ -624,7 +637,7 @@ async def gban(message: Message):
 
     # Парсинг сообщения: причина и время наказания
     text_rows = message.text.split("\n", 1)
-    date_until = datetime.now().timestamp() + (31_536_000.0 + 86_401.0) # Если не указано время, то бессрочно
+    date_until = None # Если не указано время, то бессрочно
     date_until_str = "бессрочно"
     target_quote = f" | \"{message.reply_to_message.text or "[ВЛОЖЕНИЕ]"}\"" if message.reply_to_message else ""
     reason = f"Причина не указана.{target_quote}" # Если не указана причина - так и пишу
@@ -646,10 +659,9 @@ async def gban(message: Message):
         if time_str[1] in ("навсегда", "бессрочно"):
             pass
         else:
-            time_str = time_str[1].split(" ")
-            if len(time_str) > 1:
+            if len(time_str) != 2:
                 return await message.reply("Время наказания введено неккоректно.")
-            date_until_pack = await parse_time(time_str[1])
+            date_until_pack = await parse_time(time_str)
             if date_until_pack is None:
                 return await message.reply("Время наказания введено неккоректно.")
             date_until, date_until_str = date_until_pack
@@ -671,10 +683,11 @@ async def gban(message: Message):
             await bot.ban_chat_member(
                 chat_id=chat_tid,
                 user_id=target_tid,
-                until_date=date_until
+                until_date=datetime.fromtimestamp(date_until, tz) if date_until else None
             )
         except Exception: # Если бота нет в чате или нет прав
             continue
+        await sleep(2)
 
     # Вывод
     await message.reply(
@@ -754,6 +767,7 @@ async def gunban(message: Message):
             )
         except Exception: # Если бота нет в чате или нет прав
             continue
+        await sleep(2)
 
     # Вывод
     await message.reply(
@@ -833,7 +847,7 @@ async def gmute(message: Message):
 
     # Парсинг сообщения: причина и время наказания
     text_rows = message.text.split("\n", 1)
-    date_until = datetime.now().timestamp() + (31_536_000.0 + 86_401.0) # Если не указано время, то бессрочно
+    date_until = None # Если не указано время, то бессрочно
     date_until_str = "бессрочно"
     target_quote = f" | \"{message.reply_to_message.text or "[ВЛОЖЕНИЕ]"}\"" if message.reply_to_message else ""
     reason = f"Причина не указана.{target_quote}" # Если не указана причина - так и пишу
@@ -855,10 +869,9 @@ async def gmute(message: Message):
         if time_str[1] in ("навсегда", "бессрочно"):
             pass
         else:
-            time_str = time_str[1].split(" ")
-            if len(time_str) > 1:
+            if len(time_str) != 2:
                 return await message.reply("Время наказания введено неккоректно.")
-            date_until_pack = await parse_time(time_str[1])
+            date_until_pack = await parse_time(time_str)
             if date_until_pack is None:
                 return await message.reply("Время наказания введено неккоректно.")
             date_until, date_until_str = date_until_pack
@@ -895,10 +908,11 @@ async def gmute(message: Message):
                     can_manage_topics=False
                 ),
                 use_independent_chat_permissions=True,
-                until_date=datetime.fromtimestamp(date_until)
+                until_date=datetime.fromtimestamp(date_until, tz) if date_until else None
             )
         except Exception: # Если бота нет в чате или нет прав
             continue
+        await sleep(2)
 
     # Вывод
     await message.reply(
@@ -996,6 +1010,7 @@ async def gunmute(message: Message):
             )
         except Exception: # Если бота нет в чате или нет прав
             continue
+        await sleep(2)
 
     # Вывод
     await message.reply(
@@ -1075,6 +1090,7 @@ async def gkick(message: Message):
             )
         except Exception: # Если бота нет в чате или нет прав
             continue
+        await sleep(2)
 
     # Вывод
     await message.reply(
@@ -1313,11 +1329,9 @@ async def restr_reason(message: Message):
         return
     sender_user, target_user = sender_and_target
 
-    sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
 
     # Проверка корректности отправителя и получателя
-    if sender_tid == target_tid: return await message.reply("Нельзя взаимодействовать с самим собой.")
     if target_tid == BOT_TID:    return await message.reply("Нельзя взаимодействовать с ботом.")
 
     # Получение чата и паутины
@@ -1336,8 +1350,9 @@ async def restr_reason(message: Message):
             date_reg = await parse_date(restr['date_reg'], "HH:mm d MMMM")
             date_until = await parse_date(restr['date_until'], "HH:mm d MMMM")
 
+            msg = await message.reply(f"Наказания <b>{target_user['link']}</b> в паутине <b>{web['forename']}</b>:")
             if restr['restr'] == "ban":
-                return await message.reply(
+                await msg.reply(
                     # Вывод
                     text=(
                         f"⛔ {target_user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
@@ -1348,7 +1363,7 @@ async def restr_reason(message: Message):
                     )
                 )
             if restr['restr'] == "mute":
-                return await message.reply(
+                await msg.reply(
                     # Вывод
                     text=(
                         f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
@@ -1414,7 +1429,7 @@ async def main(message: Message):
 
     if msgtextcf in ("бот", "кинг", "пинг", "пиу", "пиф", "пук"):
         return await ping(message)
-    if msgtext in ("🗂️ Мои паутины", "админ панель"):
+    elif msgtext in ("🗂️ Мои паутины", "админ панель", "панель"):
             return await get_web(message)
 
     elif message.chat.type == "private":
