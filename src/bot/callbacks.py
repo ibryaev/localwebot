@@ -60,7 +60,7 @@ async def rename(callback: CallbackQuery, state: FSMContext):
             return
         chat, web = chat_and_web
         if callback.from_user.id != web['owner_tid']:
-            return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
+            return await callback.answer(f"Это действие может произвести только {post_str['owner']}")
 
     # Вывод
     await state.set_state(WebRename.forename)
@@ -133,7 +133,7 @@ async def about(callback: CallbackQuery, state: FSMContext):
             return
         chat, web = chat_and_web
         if callback.from_user.id != web['owner_tid']:
-            return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
+            return await callback.answer(f"Это действие может произвести только {post_str['owner']}")
 
     # Вывод
     await state.set_state(WebDescription.description)
@@ -186,7 +186,7 @@ async def remove(callback: CallbackQuery):
             return
         chat, web = chat_and_web
         if callback.from_user.id != web['owner_tid']:
-            return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
+            return await callback.answer(f"Это действие может произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
         web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
@@ -232,7 +232,7 @@ async def transfer(callback: CallbackQuery, state: FSMContext):
             return
         chat, web = chat_and_web
         if callback.from_user.id != web['owner_tid']:
-            return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
+            return await callback.answer(f"Это действие может произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
         web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
@@ -312,7 +312,7 @@ async def rm_admin_chat(callback: CallbackQuery):
             return
         chat, web = chat_and_web
         if callback.from_user.id != web['owner_tid']:
-            return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
+            return await callback.answer(f"Это действие может произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
         web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
@@ -365,7 +365,7 @@ async def rm_heir(callback: CallbackQuery):
             return
         chat, web = chat_and_web
         if callback.from_user.id != web['owner_tid']:
-            return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
+            return await callback.answer(f"Это действие может произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
         web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:
@@ -845,7 +845,7 @@ async def admin_transfer(callback: CallbackQuery):
             return
         chat, web = chat_and_web
         if callback.from_user.id != web['owner_tid']:
-            return await callback.answer(f"Это действие модет произвести только {post_str['owner']}")
+            return await callback.answer(f"Это действие может произвести только {post_str['owner']}")
     elif callback.message.chat.type == "private":
         web = await db.get_web_by_owner_tid(callback.from_user.id)
         if web is None:

@@ -1459,7 +1459,7 @@ async def main(message: Message):
 
         elif msgtextcf.startswith(("гбан", "глбан", "глобан")):
             return await gban(message)
-        elif msgtextcf.startswith(("гразбан", "глразмут", "глоразбан")):
+        elif msgtextcf.startswith(("гразбан", "глразбан", "глоразбан")):
             return await gunban(message)
         elif msgtextcf.startswith(("гмут", "глмут", "гломут")):
             return await gmute(message)
