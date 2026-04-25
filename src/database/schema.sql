@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS restrs (
     user_tid BIGINT NOT NULL,
     restr restriction_type NOT NULL,
     admin_tid BIGINT NOT NULL,
+    message_admin_link TEXT DEFAULT NULL,
     reason TEXT DEFAULT NULL,
     date_reg TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     date_until TIMESTAMP DEFAULT NULL

@@ -33,7 +33,7 @@
 - [x] Add ability to view web's chats list from chat from this web ([b8f8089](https://github.com/ibryaev/localwebot/commit/b8f8089c4fd785c5ef52b07b57d2b0950b3891cf))
 - [x] Add function for chats list formatting (Формируем список чатов) ([0e078a9](https://github.com/ibryaev/localwebot/commit/0e078a956f8ed3aeab4878a2b8a60b247f0015a4))
 - [x] Restrict to report, (pro/de)mote & etc. actions with the bot ([76098b0](https://github.com/ibryaev/localwebot/commit/76098b0763ae27b309b769c4c18c6787bc4903a3))
-- [ ] Add link to admin's message when restricting user 
+- [x] Add link to admin's message when restricting user
 - [x] Add ability to view admins list from chat                    ([010066c](https://github.com/ibryaev/localwebot/commit/010066c533488a16f0e415966be5c30f9a34d74e))
 
 #### Public beta-test starts here - 4/18/26
@@ -54,4 +54,4 @@
 - [x] Implement ability to view visual web panel from admin chat  ([92d9195](https://github.com/ibryaev/localwebot/commit/92d9195af8959a7c8f2a0696ca072bbbc84e7785))
 - [x] Make `restrs_count` actually counts the given restrictions  ([92d9195](https://github.com/ibryaev/localwebot/commit/92d9195af8959a7c8f2a0696ca072bbbc84e7785))
 - [x] Add new post to admins ierarchy                             ([0e078a9](https://github.com/ibryaev/localwebot/commit/0e078a956f8ed3aeab4878a2b8a60b247f0015a4))
-  - [x] Fully adapdate code to new admins ierarchy (fix bugs)
+  - [x] Fully adapdate code to new admins ierarchy (fix bugs)     ([47fc767](https://github.com/ibryaev/localwebot/commit/47fc76748c05413f91c65935fb951e98d5c6b475))

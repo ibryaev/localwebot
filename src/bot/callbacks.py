@@ -993,11 +993,11 @@ async def report_gban(callback: CallbackQuery):
         )
 
     # Устаналивание причины
-    reason = f"Жалоба  #{report['report_id']}: \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""
+    reason = f"Жалоба (#{report['report_id']}): \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""
 
     # Непосредственное назначение наказания
     ## Запись в БД
-    restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason)
+    restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason=reason)
     if restr is None:
         return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
@@ -1101,11 +1101,11 @@ async def report_gmute(callback: CallbackQuery):
             return await callback.answer(f"Недостаточно прав ({post_str[sender_admin_post]}/{post_str['adminjr']})") # Вывод
 
     # Устаналивание причины
-    reason = f"Жалоба  #{report['report_id']}: \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""
+    reason = f"Жалоба (#{report['report_id']}): \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""
 
     # Непосредственное назначение наказания
     ## Запись в БД
-    restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason)
+    restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason=reason)
     if restr is None:
         return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
@@ -1193,6 +1193,7 @@ async def report_check(callback: CallbackQuery):
                 f"🆔 <code>@{target_tid}</code>\n"
                 f"🗣 Отправил {sender['link']} из чата {chat_user['link']}\n"
                 f"🛡️ Проверил {admin['link']}\n"
+                f"🔗 <a href='https://t.me/c/{str(report['chat_tid']).removeprefix("-100")}/{report['message_tid_bot_user']}'>Ссылка</a>\n"
                 f"<blockquote>{report['reason']}</blockquote>"
             )
         )
@@ -1201,9 +1202,9 @@ async def report_check(callback: CallbackQuery):
             message_id=report['message_tid_bot_user'],
             text=f"✅ Жалоба проверена (#{report['report_id']})"
         )
-        await callback.answer()
     except TelegramBadRequest:
         pass
+    await callback.answer()
 
 # Удаляет сообщение, на которое была подана жалоба
 
@@ -1211,9 +1212,8 @@ async def report_check(callback: CallbackQuery):
 async def report_rmmes(callback: CallbackQuery):
     report_id = callback.data.split("_")[-1]
     report = await db.get_report(report_id)
-    web_id = report['web_id']
 
-    admins_tid = await db.get_web_admins_tid(web_id)
+    admins_tid = await db.get_web_admins_tid(report['web_id'])
     if callback.from_user.id not in admins_tid:
         return await callback.answer("У Вас недостаточно прав") # Вывод
 
@@ -1222,8 +1222,18 @@ async def report_rmmes(callback: CallbackQuery):
             chat_id=report['chat_tid'],
             message_id=report['message_tid_user_replyto']
         )
-    except Exception:
-        await callback.answer("Уже и так") # Вывод
+    except TelegramBadRequest:
+        return await callback.answer(
+            # Вывод
+            text=(
+                "Не удалось. Возможные причины:\n"
+                "・Сообщение уже удалено\n"
+                "・У бота нет прав\n"
+                "・Сообщение старше двое суток\n\n"
+                "Удалите сообщение вручную."
+            ),
+            show_alert=True
+        )
     await callback.answer("✅") # Вывод
 
 #########################

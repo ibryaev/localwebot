@@ -662,7 +662,7 @@ async def gban(message: Message):
 
     # Непосредственное назначение наказания
     ## Запись в БД
-    restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason, date_until)
+    restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, message, reason, date_until)
     if restr is None:
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
@@ -858,7 +858,7 @@ async def gmute(message: Message):
 
     # Непосредственное назначение наказания
     ## Запись в БД
-    restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason, date_until)
+    restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, message, reason, date_until)
     if restr is None:
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
@@ -1104,8 +1104,17 @@ async def rmmes(message: Message):
         if post_strint[target_admin['post']] > 3 and post_strint[sender_admin['post']] < 3:
             return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin['post']]}</b>/<b>{post_str['adminjr']}</b>).") # Вывод
 
-    await message.reply_to_message.delete()
-    await message.delete()
+    try:
+        await message.reply_to_message.delete()
+        await message.delete()
+    except TelegramBadRequest:
+        return await message.reply(
+            "<b>Не удалось.</b> Возможные причины:\n"
+            "・Сообщение уже удалено\n"
+            "・У бота нет прав\n"
+            "・Сообщение старше двое суток\n\n"
+            "<b>Удалите сообщение вручную.</b>"
+        )
 
 # # # # # # # # #
 #   Остальное   #
@@ -1316,14 +1325,18 @@ async def reports(message: Message):
         sender = await db.get_user_by_tid(sender_tid)
         target = await db.get_user_by_tid(target_tid)
         chat = await db.get_user_by_tid(report['chat_tid'])
+        date_reg = await parse_date(report['date_reg'], "HH:mm d MMMM")
 
-        await message.answer(
-            f"❗️ Жалоба на {target['link']} (#{report_id})\n"
-            f"🆔 <code>@{target_tid}</code>\n"
-            f"🗣 Отправил {sender['link']} из чата {chat['link']}\n"
-            f"<blockquote>{report['reason']}</blockquote>\n\n"
-            f"🔗 <b>https://t.me/c/{str(web['admin_chat_tid']).removeprefix("-100")}/{report['message_tid_bot_admin']}</b>"
+        msg = await message.answer(
+            text=(
+                f"❗️ Жалоба на {target['link']} (#{report_id}) от {date_reg}\n"
+                f"🆔 <code>@{target_tid}</code>\n"
+                f"🗣 Отправил {sender['link']} из чата {chat['link']}\n"
+                f"<blockquote>{report['reason']}</blockquote>\n"
+            ),
+            reply_markup=await kb.report_admin(report_id)
         )
+        await db.upd_report_message_tid_bot_admin(report_id, msg.message_id)
 
 # Информация о наказаниях пользователя (причина, наказания)
 # Показывает инфу о наложенных наказаниях на данного пользователя
@@ -1356,6 +1369,7 @@ async def restr_reason(message: Message):
             admin_user = await db.get_user_by_tid(restr['admin_tid'])
             date_reg = await parse_date(restr['date_reg'], "HH:mm d MMMM")
             date_until = await parse_date(restr['date_until'], "HH:mm d MMMM")
+            message_admin_link = restr['message_admin_link'] + "\n" if restr['message_admin_link'] else ""
 
             msg = await message.reply(f"Наказания <b>{target_user['link']}</b> в паутине <b>{web['forename']}</b>:")
             if restr['restr'] == "ban":
@@ -1366,6 +1380,7 @@ async def restr_reason(message: Message):
                         f"🆔 <code>@{target_tid}</code>\n"
                         f"⏳ Выдано <b>{date_reg}</b>\n"
                         f"🛡️ Выдал {admin_user['link']}\n"
+                        f"🔗 {message_admin_link}\n"
                         f"<blockquote>{restr['reason']}</blockquote>"
                     )
                 )
@@ -1377,6 +1392,7 @@ async def restr_reason(message: Message):
                         f"🆔 <code>@{target_tid}</code>\n"
                         f"⏳ Выдано <b>{date_reg}</b>\n"
                         f"🛡️ Выдал {admin_user['link']}\n"
+                        f"🔗 {message_admin_link}"
                         f"<blockquote>{restr['reason']}</blockquote>"
                     )
                 )

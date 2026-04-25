@@ -545,22 +545,26 @@ class Database():
     #    upd_restr_reason()  upd_restr_date_until()                                        #
     ########################################################################################
 
-    async def mk_restr(self, web_id: str, user_tid: int, restr: str, admin_tid: int, reason: str = None, date_until: float = None) -> dict:
+    async def mk_restr(self, web_id: str, user_tid: int, restr: str, admin_tid: int, message_admin: Message = None, reason: str = None, date_until: float = None) -> dict:
         '''Создает запись о бане/муте в конкретной паутине'''
         if restr not in ("ban", "mute"):
             return None
         if date_until:
             date_until = datetime.fromtimestamp(date_until, ZoneInfo("Europe/Moscow"))
-        reason = reason.replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
+        if reason:
+            reason = reason.replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
+        else:
+            reason = "Причина не указана."
         if not reason:
             reason = "Причина не указана."
+        message_admin_link = f"<a href='https://t.me/c/{str(message_admin.chat.id).removeprefix("-100")}/{message_admin.message_id}'>Ссылка</a>" if message_admin else "Нет ссылки"
 
         try:
             restr_id = await self.mkid("restrs")
 
             await self.cur.execute(
-                "INSERT INTO restrs (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
-                (restr_id, web_id, user_tid, restr, admin_tid, reason, date_until)
+                "INSERT INTO restrs (restr_id, web_id, user_tid, restr, admin_tid, message_admin_link, reason, date_until) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+                (restr_id, web_id, user_tid, restr, admin_tid, message_admin_link, reason, date_until)
             )
             restr = await self.cur.fetchone()
             await self.conn.commit()
@@ -676,6 +680,7 @@ class Database():
             reason = "Причина не указана."
         if not reason:
             reason = "Причина не указана."
+        reason = f"{reason} | \"{message_user.reply_to_message.text}\""
 
         try:
             await self.cur.execute(
@@ -697,6 +702,19 @@ class Database():
         except Exception as e:
             print(f"error: database: get_report(): {e}")
             return None
+
+    async def upd_report_message_tid_bot_admin(self, report_id: str, message_tid_bot_admin: int):
+        try:
+            await self.cur.execute(
+                "UPDATE reports SET message_tid_bot_admin = %s WHERE report_id = %s",
+                (message_tid_bot_admin, report_id)
+            )
+            await self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"error: database: upd_report_message_tid_bot_admin(): {e}")
+            await self.conn.rollback()
+            return False
 
     async def rm_report(self, report_id: str) -> bool:
         '''Удаляет жалобу'''
