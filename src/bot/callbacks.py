@@ -986,16 +986,11 @@ async def report_gban(callback: CallbackQuery):
     # Проверка на то, что получатель является админом
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
     if target_admin:
-        # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
-        sender_admin_post = sender_admin['post']
-        target_admin_post = target_admin['post']
-
-        if target_admin_post in ("helper", "owner"):
-            return await callback.answer(f"Нельзя наказать {post_str['helper']}а или {post_str['owner'][:-2]}ца.") # Вывод
-        if target_admin_post == "admin" and post_strint[sender_admin_post] < 3:
-            return await callback.answer("Недостаточно прав")  # Вывод
-        if target_admin_post == "moder" and post_strint[sender_admin_post] < 2:
-            return await callback.answer("Недостаточно прав")  # Вывод
+        # Если да - нельзя наказать
+        return await callback.answer(
+            text="Нельзя глобально забанить админа. Сначала снимите его с должности",
+            show_alert=True
+        )
 
     # Устаналивание причины
     reason = f"Жалоба  #{report['report_id']}: \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""
@@ -1005,14 +1000,6 @@ async def report_gban(callback: CallbackQuery):
     restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason)
     if restr is None:
         return await callback.answer("Непредвиденная ошибка. Попробуйте позже") # Вывод
-    if target_admin:
-        result = await db.rm_admin(target_tid, web_id) # Если целевой пользователь являлся админом, то снимаем его
-        if result is None:
-            # Вывод
-            await callback.answer(
-                text="Человек успешно забанен, но по неизвестной причине с него не удалось снять админские права. Сделайте это вручную.",
-                show_alert=True
-            )
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
 
     ## Назначение в Телеграме
@@ -1106,12 +1093,12 @@ async def report_gmute(callback: CallbackQuery):
         sender_admin_post = sender_admin['post']
         target_admin_post = target_admin['post']
 
-        if target_admin_post in ("helper", "owner"):
-            return await callback.answer(f"Нельзя наказать {post_str['helper']}а или {post_str['owner'][:-2]}ца.") # Вывод
-        if target_admin_post == "admin" and post_strint[sender_admin_post] < 3:
-            return await callback.answer("Недостаточно прав")  # Вывод
-        if target_admin_post == "moder" and post_strint[sender_admin_post] < 2:
-            return await callback.answer("Недостаточно прав")  # Вывод
+        if target_admin_post in ("owner", "admin"):
+            return await callback.answer(f"Нельзя наказать {post_str['admin']}а или {post_str['owner']}") # Вывод
+        elif target_admin_post == "adminjr" and post_strint[sender_admin_post] < 4:
+            return await callback.answer(f"Недостаточно прав ({post_str[sender_admin_post]}/{post_str['admin']})") # Вывод
+        elif target_admin_post in ("moder", "helper") and post_strint[sender_admin_post] < 3:
+            return await callback.answer(f"Недостаточно прав ({post_str[sender_admin_post]}/{post_str['adminjr']})") # Вывод
 
     # Устаналивание причины
     reason = f"Жалоба  #{report['report_id']}: \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""

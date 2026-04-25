@@ -622,18 +622,11 @@ async def gban(message: Message):
         sender_admin_poststr = post_str[sender_admin['post']] if sender_admin else post_str["user"]
         return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['moder']}</b>).") # Вывод
 
-    ## Проверка на то, что получатель является админом
+    # Проверка на то, что получатель является админом
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
     if target_admin:
-        sender_admin_post = sender_admin['post']
-        target_admin_post = target_admin['post']
-
-        if target_admin_post in ("owner", "admin"):
-            return await message.reply(f"Нельзя наказать {post_str['admin']}а или {post_str['owner'][:-2]}ца.") # Вывод
-        elif target_admin_post == "adminjr" and post_strint[sender_admin_post] < 4:
-            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)") # Вывод
-        elif target_admin_post in ("moder", "helper") and post_strint[sender_admin_post] < 3:
-            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['adminjr']}</b>)") # Вывод
+        # Если да - нельзя наказать
+        return await message.reply("Нельзя глобально забанить админа. Сначала снимите его с должности.")
 
     # Парсинг сообщения: причина и время наказания
     text_rows = message.text.split("\n", 1)
@@ -650,7 +643,8 @@ async def gban(message: Message):
         reason = f"{text_rows[1].strip()}{target_quote}"
 
     ## Время наказания
-    text_row_0 = text_rows[0].replace(await grep_username(text_rows[0], True), "").replace("  ", " ").strip()
+    target_username = await grep_username(text_rows[0], True)
+    text_row_0 = text_rows[0].replace(target_username if target_username else "", "").replace("  ", " ").strip()
     time_str = text_row_0.split(" ", 1)
     
     if len(time_str) == 1:
@@ -671,9 +665,6 @@ async def gban(message: Message):
     restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason, date_until)
     if restr is None:
         return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
-    if target_admin:
-        result = await db.rm_admin(target_tid, web_id) # Если целевой пользователь являлся админом, то снимаем его
-        if result is None: await message.reply("Человек успешно забанен, но по неизвестной причине с него не удалось снять админские права. Сделайте это вручную.") # Вывод
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
 
     ## Назначение в Телеграме
@@ -701,9 +692,10 @@ async def gban(message: Message):
 
 async def gunban(message: Message):
     # Получение отправителя и получателя
-    sender_user, target_user = await get_sender_and_target(message)
-    if not target_user or not sender_user:
+    sender_and_target = await get_sender_and_target(message)
+    if sender_and_target is None:
         return
+    sender_user, target_user = sender_and_target
 
     sender_tid = sender_user['tid'] # TID отправителя
     target_tid = target_user['tid'] # TID получателя
@@ -737,19 +729,6 @@ async def gunban(message: Message):
     if sender_admin is None or post_strint[sender_admin['post']] < 2:
         sender_admin_poststr = post_str[sender_admin['post']] if sender_admin else post_str["user"]
         return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['moder']}</b>).") # Вывод
-
-    ## Проверка на то, что получатель является админом
-    target_admin = await db.get_admin_by_tid(target_tid, web_id)
-    if target_admin:
-        sender_admin_post = sender_admin['post']
-        target_admin_post = target_admin['post']
-
-        if target_admin_post in ("owner", "admin"):
-            return await message.reply(f"Нельзя наказать {post_str['admin']}а или {post_str['owner'][:-2]}ца.") # Вывод
-        elif target_admin_post == "adminjr" and post_strint[sender_admin_post] < 4:
-            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)") # Вывод
-        elif target_admin_post in ("moder", "helper") and post_strint[sender_admin_post] < 3:
-            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['adminjr']}</b>)") # Вывод
 
     # Непосредственное удаление наказания
     ## Удаление записи из БД
@@ -834,16 +813,16 @@ async def gmute(message: Message):
     # Проверка на то, что получатель является админом
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
     if target_admin:
-        # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
+        # Иерархические проверки
         sender_admin_post = sender_admin['post']
         target_admin_post = target_admin['post']
 
-        if target_admin_post in ("helper", "owner"):
-            return await message.reply(f"Нельзя наказать {post_str['helper']}а или {post_str['owner'][:-2]}ца.")                # Вывод
-        elif target_admin_post == "admin" and post_strint[sender_admin_post] < 3:
-            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['helper']}</b>)") # Вывод
-        elif target_admin_post == "moder" and post_strint[sender_admin_post] < 2:
-            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)")  # Вывод
+        if target_admin_post in ("owner", "admin"):
+            return await message.reply(f"Нельзя наказать <b>{post_str['admin']}а</b> или <b>{post_str['owner']}</b>.") # Вывод
+        elif target_admin_post == "adminjr" and post_strint[sender_admin_post] < 4:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)") # Вывод
+        elif target_admin_post in ("moder", "helper") and post_strint[sender_admin_post] < 3:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['adminjr']}</b>)") # Вывод
 
     # Парсинг сообщения: причина и время наказания
     text_rows = message.text.split("\n", 1)
@@ -860,7 +839,8 @@ async def gmute(message: Message):
         reason = f"{text_rows[1].strip()}{target_quote}"
 
     ## Время наказания
-    text_row_0 = text_rows[0].strip().replace(await grep_username(text_rows[0], True), "").replace("  ", " ").strip()
+    target_username = await grep_username(text_rows[0], True)
+    text_row_0 = text_rows[0].replace(target_username if target_username else "", "").replace("  ", " ").strip()
     time_str = text_row_0.split(" ", 1)
     
     if len(time_str) == 1:
@@ -970,9 +950,7 @@ async def gunmute(message: Message):
         sender_admin_post = sender_admin['post']
         target_admin_post = target_admin['post']
 
-        if target_admin_post in ("owner", "admin"):
-            return await message.reply(f"Нельзя наказать {post_str['admin']}а или {post_str['owner'][:-2]}ца.") # Вывод
-        elif target_admin_post == "adminjr" and post_strint[sender_admin_post] < 4:
+        if target_admin_post == "adminjr" and post_strint[sender_admin_post] < 4:
             return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['admin']}</b>)") # Вывод
         elif target_admin_post in ("moder", "helper") and post_strint[sender_admin_post] < 3:   
             return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['adminjr']}</b>)") # Вывод
@@ -1049,9 +1027,9 @@ async def gkick(message: Message):
     # Проверка прав
     # Проверка на то, что отправитель является админом
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if sender_admin is None or post_strint[sender_admin['post']] < 2:
+    if sender_admin is None:
         sender_admin_poststr = post_str[sender_admin['post']] if sender_admin else post_str["user"]
-        return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['moder']}</b>).") # Вывод
+        return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['helper']}</b>).") # Вывод
 
     # Проверка на то, что получатель является админом
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
@@ -1494,7 +1472,7 @@ async def main(message: Message):
             return await gmute(message)
         elif msgtextcf.startswith(("гразмут", "глразмут", "глоразмут")):
             return await gunmute(message)
-        elif msgtextcf.startswith(("гкик", "глкик", "глокик")):
+        elif msgtextcf.startswith(("гкик", "глкик", "глокик", "глок", "глок17")):
             return await gkick(message)
         elif msgtextcf in ("-соо", "-сообщение", "удалить", "-смс"):
             return await rmmes(message)
