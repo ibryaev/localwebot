@@ -367,7 +367,7 @@ async def admin_up(message: Message):
     if target_admin is None:
         result = await db.mk_admin(target_tid, web_id, post_intstr[1])
         if result is None: return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
-        return await message.reply(f"🛡 {target_user['link']} назначен <b>{post_str['moder']}ом</b> паутины!") # Вывод
+        return await message.reply(f"🛡 {target_user['link']} назначен <b>{post_str['helper']}ом</b> паутины!") # Вывод
 
     sender_post = sender_admin['post'] # Должность отправителя
     target_post = target_admin['post'] # Должность получателя
@@ -1100,6 +1100,35 @@ async def gkick(message: Message):
         f"<blockquote>{reason}</blockquote>"
     )
 
+# Удаление сообщения (удалить, -соо, -сообщение, -смс)
+# Удаляет сообщение, на которое была введена команда.
+
+async def rmmes(message: Message):
+    if not message.reply_to_message:
+        return await message.delete()
+
+    # Получение чата и паутины
+    chat_and_web = await get_chat_and_web(message)
+    if chat_and_web is None:
+        return
+    chat, web = chat_and_web
+
+    admins_tid = await db.get_web_admins_tid(web['web_id'])
+    if message.from_user.id not in admins_tid:
+        return await message.reply("У Вас недостаточно прав") # Вывод
+
+    sender_admin = await db.get_admin_by_tid(message.from_user.id, web['web_id'])
+    target_admin = await db.get_admin_by_tid(message.reply_to_message.from_user.id, web['web_id'])
+
+    if target_admin:
+        if target_admin['post'] == "owner" and message.from_user.id != web['owner_tid']:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin['post']]}</b>/<b>{post_str['owner']}</b>).") # Вывод
+        if post_strint[target_admin['post']] > 3 and post_strint[sender_admin['post']] < 3:
+            return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin['post']]}</b>/<b>{post_str['adminjr']}</b>).") # Вывод
+
+    await message.reply_to_message.delete()
+    await message.delete()
+
 # # # # # # # # #
 #   Остальное   #
 # # # # # # # # #
@@ -1467,6 +1496,8 @@ async def main(message: Message):
             return await gunmute(message)
         elif msgtextcf.startswith(("гкик", "глкик", "глокик")):
             return await gkick(message)
+        elif msgtextcf in ("-соо", "-сообщение", "удалить", "-смс"):
+            return await rmmes(message)
 
         elif msgtextcf.startswith(("жалоба", ".жалоба", "репорт", ".репорт")):
             return await report(message)
