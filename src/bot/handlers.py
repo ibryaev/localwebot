@@ -1126,11 +1126,12 @@ async def rmmes(message: Message):
 # Работает только в ответ на сообщение, не принимая @юзернейм.
 
 async def report(message: Message):
+    if message.reply_to_message is None:
+        return await message.reply("Жалобу нужно подать ответом на сообщение.")
+
     # Получение отправителя и получателя
-    sender_and_target = await get_sender_and_target(message)
-    if sender_and_target is None:
-        return
-    sender, target = sender_and_target
+    sender = await db.mk_user(user=message.from_user)
+    target = await db.mk_user(user=message.reply_to_message.from_user)
 
     sender_tid = sender['tid'] # TID отправителя
     target_tid = target['tid'] # TID получателя
@@ -1447,12 +1448,20 @@ async def main(message: Message):
     if message.text is None:
         return
 
+    msgtextcf = message.text.casefold()
+    for prefix in PREFIXES:
+        if msgtextcf.startswith(prefix.casefold()):
+            message = message.model_copy(update={
+                "text": message.text[len(prefix):].strip()
+            })
+            break
+
     msgtext = message.text.strip()
-    msgtextcf = msgtext.casefold().strip()
+    msgtextcf = msgtext.casefold()
 
     if msgtextcf in ("бот", "кинг", "пинг", "пиу", "пиф", "пук"):
         return await ping(message)
-    elif msgtext in ("🗂️ Мои паутины", "админ панель", "панель"):
+    elif msgtext == "🗂️ Мои паутины" or msgtextcf in ("админ панель", "панель"):
             return await get_web(message)
 
     elif message.chat.type == "private":
@@ -1488,12 +1497,12 @@ async def main(message: Message):
             return await gmute(message)
         elif msgtextcf.startswith(("гразмут", "глразмут", "глоразмут")):
             return await gunmute(message)
-        elif msgtextcf.startswith(("гкик", "глкик", "глокик", "глок", "глок17")):
+        elif msgtextcf.startswith(("гкик", "глкик", "глокик", "глок17")):
             return await gkick(message)
         elif msgtextcf in ("-соо", "-сообщение", "удалить", "-смс"):
             return await rmmes(message)
 
-        elif msgtextcf.startswith(("жалоба", ".жалоба", "репорт", ".репорт")):
+        elif msgtextcf.startswith(("жалоба", "репорт", "реп")):
             return await report(message)
         elif msgtextcf == "чаты":
             return await chats_tid(message)
@@ -1501,5 +1510,5 @@ async def main(message: Message):
             return await admins(message)
         elif msgtextcf in ("жалобы", "репорты"):
             return await reports(message)
-        elif msgtextcf.startswith(("причина", "наказания")):
+        elif msgtextcf.startswith(("причина", "причины", "наказание", "наказания")):
             return await restr_reason(message)

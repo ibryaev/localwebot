@@ -34,11 +34,12 @@ bot = Bot(
 db = Database()
 tz = ZoneInfo("Europe/Moscow")
 
-# Данные бота (чтобы на вызывать bot.get_me())
+# Данные бота (чтобы на вызывать bot.get_me()) и префиксы для команд
 
 BOT_TID = 8751189083
 BOT_USERNAME = "localwebot"
 BOT_FULL_NAME = "Setka (Localweb) — Бот для создания сеток чатов"
+PREFIXES = ("!", ".", "/", "сетка", "сеточка", "паутина", "гло", "гл", "г")
 
 # Иерархия модерации
 
