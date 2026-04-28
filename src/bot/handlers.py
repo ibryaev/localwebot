@@ -712,17 +712,6 @@ async def gunban(message: Message):
 
     web_id = web['web_id'] # ID паутины
 
-    # Проверка, есть ли вообще у получателя активное наказание
-    target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
-    target_restr = {}
-    for tr in target_restrs:
-        if tr['restr'] == "ban":
-            target_restr = tr
-            break
-    if not target_restr:
-        # Если искомое наказание не было найдено
-        return await message.reply("У этого пользователя нет активного глобального бана в этой паутине.")
-
     # Проверка прав
     ## Проверка на то, что отправитель является админом
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
@@ -731,9 +720,7 @@ async def gunban(message: Message):
         return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['moder']}</b>).") # Вывод
 
     # Непосредственное удаление наказания
-    ## Удаление записи из БД
-    result = await db.rm_restr(target_restr['restr_id'])
-    if result is None: return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока пользователь разбанивается
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -748,8 +735,27 @@ async def gunban(message: Message):
             continue
         await sleep(2)
 
+    ## Проверка, есть ли вообще у получателя активное наказание
+    target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
+    target_restr = {}
+    for tr in target_restrs:
+        if tr['restr'] == "ban":
+            target_restr = tr
+            break
+    if not target_restr:
+        # Если искомое наказание не было найдено
+        return await msg.edit_text(
+            f"Я не обнаружил активный бан у {target_user['link']}, "
+             "но на всякий случай прошёлся по каждому чату паутины "
+             "и разбанил там, где смог."
+        )
+
+    ## Удаление записи из БД
+    result = await db.rm_restr(target_restr['restr_id'])
+    if result is None: return await msg.edit_text("Непредвиденная ошибка. Обязательно попробуйте позже.") # Вывод
+
     # Вывод
-    await message.reply(
+    await msg.edit_text(
         f"✅ {target_user['link']}, глобальный разбан в паутине <b>{web['forename']}</b>\n"
         f"🆔 <code>@{target_tid}</code>\n"
         f"🛡️ Снял {sender_user['link']}"
@@ -926,17 +932,6 @@ async def gunmute(message: Message):
 
     web_id = web['web_id'] # ID паутины
 
-    # Проверка, есть ли вообще у получателя активное наказание
-    target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
-    target_restr = {}
-    for tr in target_restrs:
-        if tr['restr'] == "mute":
-            target_restr = tr
-            break
-    if not target_restr:
-        # Если искомое наказание не было найдено
-        return await message.reply("У этого пользователя нет активного глобального мута в этой паутине.")
-
     # Проверка прав
     # Проверка на то, что отправитель является админом
     sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
@@ -956,9 +951,7 @@ async def gunmute(message: Message):
             return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['adminjr']}</b>)") # Вывод
 
     # Непосредственное удаление наказания
-    ## Удаление записи из БД
-    result = await db.rm_restr(target_restr['restr_id'])
-    if result is None: return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока пользователь размучивается
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -989,6 +982,25 @@ async def gunmute(message: Message):
         except Exception: # Если бота нет в чате или нет прав
             continue
         await sleep(2)
+
+    ## Проверка, есть ли вообще у получателя активное наказание
+    target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
+    target_restr = {}
+    for tr in target_restrs:
+        if tr['restr'] == "mute":
+            target_restr = tr
+            break
+    if not target_restr:
+        # Если искомое наказание не было найдено
+        return await msg.edit_text(
+            f"Я не обнаружил активный мут у {target_user['link']}, "
+             "но на всякий случай прошёлся по каждому чату паутины "
+             "и размутил там, где смог."
+        )
+
+    ## Удаление записи из БД
+    result = await db.rm_restr(target_restr['restr_id'])
+    if result is None: return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
     await message.reply(
@@ -1151,6 +1163,10 @@ async def report(message: Message):
     web_id = web['web_id'] # ID паутины
     chat_user = await db.get_user_by_tid(message.chat.id)
 
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+    if target_admin:
+        admin_mark = "🔰 Жалоба на администратора\n"
+
     # Непосредственно логика команды
     message_user = await message.reply("Подождите, идёт загрузка...") # Вывод (загрузка)
     message_admin = await bot.send_message(
@@ -1174,6 +1190,7 @@ async def report(message: Message):
             f"❗️ Жалоба на {target['link']} отправлена (#{report['report_id']})\n"
             f"🆔 <code>@{target_tid}</code>\n"
             f"🗣 Отправил {sender['link']}\n"
+            f"{admin_mark}"
             f"<blockquote>{report['reason']}</blockquote>"
         ),
         reply_markup=await kb.report_user(report_id)
@@ -1183,6 +1200,7 @@ async def report(message: Message):
             f"❗️ Жалоба на {target['link']} (#{report['report_id']})\n"
             f"🆔 <code>@{target_tid}</code>\n"
             f"🗣 Отправил {sender['link']} из чата {chat_user['link']}\n"
+            f"{admin_mark}"
             f"<blockquote>{report['reason']}</blockquote>"
         ),
         reply_markup=await kb.report_admin(report_id)
@@ -1249,27 +1267,32 @@ async def admins(message: Message):
         admin_post = admin['post']
         admin_user = await db.get_user_by_tid(admin_tid); admin_link = admin_user['link']
 
+        admin_status = await bot.get_chat_member(message.chat.id, admin_tid)
+        await sleep(0.3)
+        if admin_status.status == "creator":
+            admin_status = "⭐"
+        elif admin_status.status == "administrator":
+            admin_status = "🥎"
+        elif admin_status.status == "member":
+            admin_status = "🏐"
+        elif admin_status.status in ("restricted", "kicked"):
+            admin_status = "⚠️"
+        else:
+            admin_status = "➖"
+
         if admin_tid == web['owner_tid']:
-            owner_and_heir_str += f"\n{admin_link} ({post_str[admin_post]})"
-            if admin_tid == chat['owner_tid']:
-                owner_and_heir_str += " (Владелец этого чата)"
+            owner_and_heir_str += f"\n{admin_status} {admin_link} ({post_str[admin_post]})"
         elif admin_tid == web['heir_tid']:
-            owner_and_heir_str += f"\n{admin_link} (Наследник) ({post_str[admin_post]})"
-            if admin_tid == chat['owner_tid']:
-                owner_and_heir_str += " (Владелец этого чата)"
+            owner_and_heir_str += f"\n{admin_status} {admin_link} (Наследник) ({post_str[admin_post]})"
 
         elif admin_post == "admin":
-            admins_str += "\n" + admin_link
-            if admin_tid == chat['owner_tid']:
-                admins_str += " (Владелец этого чата)"
+            admins_str += "\n" + admin_status + " " + admin_link
         elif admin_post == "adminjr":
-            adminsjr_str += "\n" + admin_link
-            if admin_tid == chat['owner_tid']:
-                adminsjr_str += " (Владелец этого чата)"
+            adminsjr_str += "\n" + admin_status + " " + admin_link
         elif admin_post == "moder":
-            moders_str += "\n" + admin_link
+            moders_str += "\n" + admin_status + " " + admin_link
         elif admin_post == "helper":
-            helpers_str += "\n" + admin_link
+            helpers_str += "\n" + admin_status + " " + admin_link
         # Проверка на "(Владелец этого чата)" есть только у владельца паутины, админа и младшего админа, 
         # потому что владельцы чатов не могут иметь должности ниже.
 
@@ -1327,12 +1350,16 @@ async def reports(message: Message):
         target = await db.get_user_by_tid(target_tid)
         chat = await db.get_user_by_tid(report['chat_tid'])
         date_reg = await parse_date(report['date_reg'], "HH:mm d MMMM")
+        target_admin = await db.get_admin_by_tid(target_tid, web['web_id'])
+        if target_admin:
+            admin_mark = "🔰 Жалоба на администратора\n"
 
         msg = await message.answer(
             text=(
                 f"❗️ Жалоба на {target['link']} (#{report_id}) от {date_reg}\n"
                 f"🆔 <code>@{target_tid}</code>\n"
                 f"🗣 Отправил {sender['link']} из чата {chat['link']}\n"
+                f"{admin_mark}"
                 f"<blockquote>{report['reason']}</blockquote>\n"
             ),
             reply_markup=await kb.report_admin(report_id)
@@ -1448,6 +1475,8 @@ async def main(message: Message):
     if message.text is None:
         return
 
+    msgtextold = message.text.strip().casefold()
+
     msgtextcf = message.text.casefold()
     for prefix in PREFIXES:
         if msgtextcf.startswith(prefix.casefold()):
@@ -1489,15 +1518,15 @@ async def main(message: Message):
         elif msgtextcf.startswith("снять"):
             return await admin_fire(message)
 
-        elif msgtextcf.startswith(("гбан", "глбан", "глобан")):
+        elif msgtextold.startswith(("гбан", "глбан", "глобан")):
             return await gban(message)
-        elif msgtextcf.startswith(("гразбан", "глразбан", "глоразбан")):
+        elif msgtextold.startswith(("гразбан", "глразбан", "глоразбан")):
             return await gunban(message)
-        elif msgtextcf.startswith(("гмут", "глмут", "гломут")):
+        elif msgtextold.startswith(("гмут", "глмут", "гломут")):
             return await gmute(message)
-        elif msgtextcf.startswith(("гразмут", "глразмут", "глоразмут")):
+        elif msgtextold.startswith(("гразмут", "глразмут", "глоразмут")):
             return await gunmute(message)
-        elif msgtextcf.startswith(("гкик", "глкик", "глокик", "глок17")):
+        elif msgtextold.startswith(("гкик", "глкик", "глокик", "глок17")):
             return await gkick(message)
         elif msgtextcf in ("-соо", "-сообщение", "удалить", "-смс"):
             return await rmmes(message)
@@ -1506,7 +1535,7 @@ async def main(message: Message):
             return await report(message)
         elif msgtextcf == "чаты":
             return await chats_tid(message)
-        elif msgtextcf in ("админы", "гладмины", "глоадмины", "кто админ", "кто гладмин", "кто глоадмин"):
+        elif msgtextcf in ("админы", "кто админ", "кто гладмин", "кто глоадмин", "кто админы", "кто гладмины", "кто глоадмины"):
             return await admins(message)
         elif msgtextcf in ("жалобы", "репорты"):
             return await reports(message)
