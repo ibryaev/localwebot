@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message, ChatPermissions
 from datetime import datetime
-from asyncio import sleep
 
 from config import *
 from utils import *
@@ -676,9 +675,9 @@ async def gban(message: Message):
                 user_id=target_tid,
                 until_date=datetime.fromtimestamp(date_until, tz) if date_until else None
             )
+            await sleep(2)
         except Exception: # Если бота нет в чате или нет прав
             continue
-        await sleep(2)
 
     # Вывод
     await message.reply(
@@ -731,9 +730,9 @@ async def gunban(message: Message):
                 user_id=target_tid,
                 only_if_banned=True
             )
+            await sleep(2)
         except Exception: # Если бота нет в чате или нет прав
             continue
-        await sleep(2)
 
     ## Проверка, есть ли вообще у получателя активное наказание
     target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
@@ -896,9 +895,9 @@ async def gmute(message: Message):
                 use_independent_chat_permissions=True,
                 until_date=datetime.fromtimestamp(date_until, tz) if date_until else None
             )
+            await sleep(2)
         except Exception: # Если бота нет в чате или нет прав
             continue
-        await sleep(2)
 
     # Вывод
     await message.reply(
@@ -979,9 +978,9 @@ async def gunmute(message: Message):
                 ),
                 use_independent_chat_permissions=True
             )
+            await sleep(2)
         except Exception: # Если бота нет в чате или нет прав
             continue
-        await sleep(2)
 
     ## Проверка, есть ли вообще у получателя активное наказание
     target_restrs = await db.get_restrs_by_user_tid_in_web(target_tid, web_id)
@@ -1078,9 +1077,9 @@ async def gkick(message: Message):
                 user_id=target_tid,
                 only_if_banned=True
             )
+            await sleep(2)
         except Exception: # Если бота нет в чате или нет прав
             continue
-        await sleep(2)
 
     # Вывод
     await message.reply(

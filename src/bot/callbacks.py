@@ -1010,9 +1010,9 @@ async def report_gban(callback: CallbackQuery):
                 chat_id=chat_tid,
                 user_id=target_tid
             )
+            await sleep(2)
         except Exception: # Если бота нет в чате или нет прав
             continue
-        await sleep(2)
 
     # Вывод
     await callback.message.reply(
@@ -1136,9 +1136,9 @@ async def report_gmute(callback: CallbackQuery):
                 ),
                 use_independent_chat_permissions=True
             )
+            await sleep(2)
         except Exception: # Если бота нет в чате или нет прав
             continue
-        await sleep(2)
 
     # Вывод
     await callback.message.reply(
