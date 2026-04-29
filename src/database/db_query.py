@@ -552,7 +552,7 @@ class Database():
         if date_until:
             date_until = datetime.fromtimestamp(date_until, ZoneInfo("Europe/Moscow"))
         if reason:
-            reason = reason.replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
+            reason = reason.replace("<", "").replace(">", "").strip()
         else:
             reason = "Причина не указана."
         if not reason:
@@ -618,7 +618,7 @@ class Database():
 
     async def upd_restr_reason(self, restr_id: str, reason: str) -> bool:
         '''Изменяет причину наказания'''
-        reason = reason.replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
+        reason = reason.replace("<", "").replace(">", "").strip()
         if not reason:
             reason = "Причина не указана."
 
@@ -675,7 +675,7 @@ class Database():
         target_tid = message_user.reply_to_message.from_user.id
         reason = message_user.text.split("\n", 1)
         if len(reason) == 2:
-            reason = reason[1].replace("<blockquote>", "").replace("</blockquote>", "").replace("<pre>", "").replace("</pre>", "").strip()
+            reason = reason[1].replace("<", "").replace(">", "").strip()
         else:
             reason = "Причина не указана."
         if not reason:

@@ -930,15 +930,14 @@ async def report_gban(callback: CallbackQuery):
     if sender_tid == target_tid:
         return await callback.answer(
             # Вывод
-            text=choice([
+            choice([
                 "Я слышал твоя мама села на айфон и он стал айпадом",
                 "Твоя мамка такая жирная, что у неё есть собственный почтовый индекс",
                 "Если долго смотреть на небо, то можно увидеть созвездие твоей жирной мамаши",
                 "Твоя мама настолько жирная, что когда она нагибается все думают что это вход в метро",
                 "Твоя мама нормальная и вовсе не жирная",
                 "твоя мама настолько жирная что ей нужно искать свою задницу в справочнике"
-            ]),
-            show_alert=True
+            ])
         )
 
     # Получение чата из таблиц users & chats
@@ -1160,6 +1159,10 @@ async def report_check(callback: CallbackQuery):
         return await callback.message.delete()
     sender_tid = report['sender_tid']
     target_tid = report['target_tid']
+
+    # Проверка корректности отправителя и получателя
+    if callback.from_user.id == target_tid: return await callback.answer("Нельзя взаимодействовать с самим собой")
+
     sender = await db.get_user_by_tid(sender_tid)
     target = await db.get_user_by_tid(target_tid)
     admin  = await db.mk_user(callback.from_user)
@@ -1168,10 +1171,27 @@ async def report_check(callback: CallbackQuery):
     web = await db.get_web(web_id)
     web_admin_chat_tid = web['admin_chat_tid']
 
-    if callback.message.chat.id != web_admin_chat_tid:
-        admins_tid = await db.get_web_admins_tid(web_id)
-        if callback.from_user.id not in admins_tid:
-            return await callback.answer("У Вас недостаточно прав") # Вывод
+    # Проверка прав
+    # Проверка на то, что отправитель является админом
+    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
+    if sender_admin is None:
+        # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
+        return await callback.answer("Недостаточно прав") # Вывод
+
+    # Проверка на то, что получатель является админом
+    target_admin = await db.get_admin_by_tid(target_tid, web_id)
+    admin_mark = ""
+    if target_admin:
+        # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
+        sender_admin_post = sender_admin['post']
+        target_admin_post = target_admin['post']
+
+        if target_admin_post == "adminjr" and post_strint[sender_admin_post] < 4:
+            return await callback.answer(f"Недостаточно прав ({post_str[sender_admin_post]}/{post_str['admin']})") # Вывод
+        elif target_admin_post in ("moder", "helper") and post_strint[sender_admin_post] < 3:
+            return await callback.answer(f"Недостаточно прав ({post_str[sender_admin_post]}/{post_str['adminjr']})") # Вывод
+
+        admin_mark = "🔰 Жалоба на администратора\n"
 
     result = await db.rm_report(report_id)
     if not result:
@@ -1192,6 +1212,7 @@ async def report_check(callback: CallbackQuery):
                 f"✅ Жалоба на {target['link']} проверена (#{report['report_id']})\n"
                 f"🆔 <code>@{target_tid}</code>\n"
                 f"🗣 Отправил {sender['link']} из чата {chat_user['link']}\n"
+                f"{admin_mark}"
                 f"🛡️ Проверил {admin['link']}\n"
                 f"🔗 <a href='https://t.me/c/{str(report['chat_tid']).removeprefix("-100")}/{report['message_tid_bot_user']}'>Ссылка</a>\n"
                 f"<blockquote>{report['reason']}</blockquote>"
@@ -1212,10 +1233,22 @@ async def report_check(callback: CallbackQuery):
 async def report_rmmes(callback: CallbackQuery):
     report_id = callback.data.split("_")[-1]
     report = await db.get_report(report_id)
+    if report is None:
+        await callback.answer("Жалоба не найдена")
+        return await callback.message.delete()
+    web = await db.get_web(report['web_id'])
 
-    admins_tid = await db.get_web_admins_tid(report['web_id'])
-    if callback.from_user.id not in admins_tid:
-        return await callback.answer("У Вас недостаточно прав") # Вывод
+    # Проверка корректности отправителя и получателя
+    if callback.from_user.id == report['target_tid']: return await callback.answer("Нельзя взаимодействовать с самим собой")
+
+    sender_admin = await db.get_admin_by_tid(callback.from_user.id, web['web_id'])
+    target_admin = await db.get_admin_by_tid(report['target_tid'], web['web_id'])
+
+    if target_admin:
+        if target_admin['post'] == "owner" and callback.from_user.id != web['owner_tid']:
+            return await callback.answer(f"Недостаточно прав ({post_str[sender_admin['post']]}/{post_str['owner']})") # Вывод
+        if post_strint[target_admin['post']] > 3 and post_strint[sender_admin['post']] < 3:
+            return await callback.answer(f"Недостаточно прав ({post_str[sender_admin['post']]}/{post_str['adminjr']})") # Вывод
 
     try:
         await bot.delete_message(

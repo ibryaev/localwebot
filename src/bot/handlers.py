@@ -1162,8 +1162,12 @@ async def report(message: Message):
     web_id = web['web_id'] # ID паутины
     chat_user = await db.get_user_by_tid(message.chat.id)
 
+    # Проверка прав
     target_admin = await db.get_admin_by_tid(target_tid, web_id)
+    admin_mark = ""
     if target_admin:
+        if target_admin['post'] in ("owner", "admin"):
+            return await message.reply(f"Нельзя подаль жалобу на <b>{post_str['admin']}а</b> или <b>{post_str['owner']}</b>.")
         admin_mark = "🔰 Жалоба на администратора\n"
 
     # Непосредственно логика команды
@@ -1350,6 +1354,7 @@ async def reports(message: Message):
         chat = await db.get_user_by_tid(report['chat_tid'])
         date_reg = await parse_date(report['date_reg'], "HH:mm d MMMM")
         target_admin = await db.get_admin_by_tid(target_tid, web['web_id'])
+        admin_mark = ""
         if target_admin:
             admin_mark = "🔰 Жалоба на администратора\n"
 
@@ -1530,7 +1535,7 @@ async def main(message: Message):
         elif msgtextcf in ("-соо", "-сообщение", "удалить", "-смс"):
             return await rmmes(message)
 
-        elif msgtextcf.startswith(("жалоба", "репорт", "реп")):
+        elif msgtextcf.startswith(("жалоба", "репорт", "реп", "report", "rep")):
             return await report(message)
         elif msgtextcf == "чаты":
             return await chats_tid(message)

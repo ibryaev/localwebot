@@ -15,6 +15,7 @@
     - [x] Add heir notify when he gets the web          ([4e01a59](https://github.com/ibryaev/localwebot/commit/4e01a59809b66c29a54254e89972e60c5b095b31))
 - [x] Add admin chat connection to web                  ([fca81ce](https://github.com/ibryaev/localwebot/commit/fca81ce95d6a5ca7c8f96a42b1a7744759e6465f))
 - [x] Add report system
+  - [x] Reports to admins can check only admins with highter post
   - [x] Add special mark when reporting admin
   - [x] Gban
   - [x] Gmute
@@ -50,10 +51,9 @@
 - [x] Add a command to view all restrictions for a specific user  ([956e526](https://github.com/ibryaev/localwebot/commit/956e5260246f34af9ebdce96b32dffccbc11707a))
 - [x] Add a command to view a list of all unclosed reports        ([956e526](https://github.com/ibryaev/localwebot/commit/956e5260246f34af9ebdce96b32dffccbc11707a))
 - [x] Prevent the chat owner from being demoted                   ([956e526](https://github.com/ibryaev/localwebot/commit/956e5260246f34af9ebdce96b32dffccbc11707a))
-- [x] Add chat membership status for each admin in the "admins" command
+- [x] Add chat membership status for each admin in the "admins" command ([7a8fb19](https://github.com/ibryaev/localwebot/commit/7a8fb199d91bfe2507fff2d506bbb71429f7593c))
 - [x] Implement ability to view visual web panel from admin chat  ([92d9195](https://github.com/ibryaev/localwebot/commit/92d9195af8959a7c8f2a0696ca072bbbc84e7785))
 - [x] Make `restrs_count` actually counts the given restrictions  ([92d9195](https://github.com/ibryaev/localwebot/commit/92d9195af8959a7c8f2a0696ca072bbbc84e7785))
 - [x] Add new post to admins ierarchy                             ([0e078a9](https://github.com/ibryaev/localwebot/commit/0e078a956f8ed3aeab4878a2b8a60b247f0015a4))
   - [x] Fully adapdate code to new admins ierarchy (fix bugs)     ([47fc767](https://github.com/ibryaev/localwebot/commit/47fc76748c05413f91c65935fb951e98d5c6b475))
 - [x] Implement unban/unmute in web's chats even if restriction not found in database
-- [ ] Reports to admins can check only admins with highter rang
