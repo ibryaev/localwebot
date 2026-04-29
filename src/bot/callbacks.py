@@ -1173,8 +1173,8 @@ async def report_check(callback: CallbackQuery):
 
     # Проверка прав
     # Проверка на то, что отправитель является админом
-    sender_admin = await db.get_admin_by_tid(sender_tid, web_id)
-    if sender_admin is None:
+    cb_sender_admin = await db.get_admin_by_tid(callback.from_user.id, web_id)
+    if cb_sender_admin is None:
         # Если запись в таблице admin не была найдена, это значит что пользователь не админ (логично)
         return await callback.answer("Недостаточно прав") # Вывод
 
@@ -1183,7 +1183,7 @@ async def report_check(callback: CallbackQuery):
     admin_mark = ""
     if target_admin:
         # Наказать модератора может админ. Наказать админа может хелпер. Хелпер и владелец не могут быть наказаны
-        sender_admin_post = sender_admin['post']
+        sender_admin_post = cb_sender_admin['post']
         target_admin_post = target_admin['post']
 
         if target_admin_post == "adminjr" and post_strint[sender_admin_post] < 4:
