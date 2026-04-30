@@ -1,5 +1,5 @@
 from aiogram import Router
-from aiogram.types import ChatMemberUpdated, ChatPermissions
+from aiogram.types import ChatMemberUpdated, ChatPermissions, User
 from aiogram.filters.chat_member_updated import ChatMemberUpdatedFilter, JOIN_TRANSITION#, LEAVE_TRANSITION
 
 from config import *
@@ -12,12 +12,8 @@ async def on_join_transition(event: ChatMemberUpdated) -> None:
     chat_tid = event.chat.id
     user_tid = event.from_user.id
 
-    chat_owner = await get_chat_owner(chat_tid)
-
     await db.mk_user(user=event.from_user)
     await db.mk_user(chat=event.chat)
-    await db.mk_user(user=chat_owner)
-    await db.upd_chat_owner(chat_tid, chat_owner.id)
 
     chat_chat = await db.get_chat(event.chat.id)
     if chat_chat is None: return
@@ -67,11 +63,14 @@ async def on_join_transition(event: ChatMemberUpdated) -> None:
 @rt.my_chat_member(ChatMemberUpdatedFilter(JOIN_TRANSITION))
 async def on_my_join_transition(event: ChatMemberUpdated):
     chat_tid = event.chat.id
-    chat_owner = await get_chat_owner(chat_tid)
 
+    chat_administrators = await bot.get_chat_administrators(chat_tid)
+    for admin in chat_administrators:
+        await db.mk_user(user=admin.user)
+        if admin.status == "creator":
+            await db.upd_chat_owner(chat_tid, admin.user.id)
+    
     await db.mk_user(chat=event.chat)
-    await db.mk_user(user=chat_owner)
-    await db.upd_chat_owner(chat_tid, chat_owner.id)
 
     chat = await db.get_chat(chat_tid)
     if chat is not None:
