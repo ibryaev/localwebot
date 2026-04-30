@@ -56,4 +56,5 @@
 - [x] Make `restrs_count` actually counts the given restrictions  ([92d9195](https://github.com/ibryaev/localwebot/commit/92d9195af8959a7c8f2a0696ca072bbbc84e7785))
 - [x] Add new post to admins ierarchy                             ([0e078a9](https://github.com/ibryaev/localwebot/commit/0e078a956f8ed3aeab4878a2b8a60b247f0015a4))
   - [x] Fully adapdate code to new admins ierarchy (fix bugs)     ([47fc767](https://github.com/ibryaev/localwebot/commit/47fc76748c05413f91c65935fb951e98d5c6b475))
-- [x] Implement unban/unmute in web's chats even if restriction not found in database
+- [x] Implement unban/unmute in web's chats even if restriction not found in database ([7a8fb19](https://github.com/ibryaev/localwebot/commit/7a8fb199d91bfe2507fff2d506bbb71429f7593c))
+- [x] Add ability to view your ristrictions in all webs (in DM with bot)

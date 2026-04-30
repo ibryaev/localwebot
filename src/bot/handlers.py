@@ -1380,7 +1380,7 @@ async def reports(message: Message):
 # Показывает инфу о наложенных наказаниях на данного пользователя
 # в данной паутине.
 
-async def restr_reason(message: Message):
+async def restr_reason_group(message: Message):
     # Получение отправителя и получателя
     sender_and_target = await get_sender_and_target(message)
     if sender_and_target is None:
@@ -1402,38 +1402,36 @@ async def restr_reason(message: Message):
     if not target_restrs:
         return await message.reply(f"У этого пользователя нет наказаний в паутине <b>{web['forename']}</b>.") # ВЫывод
 
-    else:
-        for restr in target_restrs:
-            admin_user = await db.get_user_by_tid(restr['admin_tid'])
-            date_reg = await parse_date(restr['date_reg'], "HH:mm d MMMM")
-            date_until = await parse_date(restr['date_until'], "HH:mm d MMMM")
-            message_admin_link = restr['message_admin_link'] + "\n" if restr['message_admin_link'] else ""
+    for restr in target_restrs:
+        admin_user = await db.get_user_by_tid(restr['admin_tid'])
+        date_reg = await parse_date(restr['date_reg'], "HH:mm d MMMM")
+        date_until = await parse_date(restr['date_until'], "HH:mm d MMMM")
+        message_admin_link = restr['message_admin_link'] + "\n" if restr['message_admin_link'] else ""
 
-            msg = await message.reply(f"Наказания <b>{target_user['link']}</b> в паутине <b>{web['forename']}</b>:")
-            if restr['restr'] == "ban":
-                await msg.reply(
-                    # Вывод
-                    text=(
-                        f"⛔ {target_user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
-                        f"🆔 <code>@{target_tid}</code>\n"
-                        f"⏳ Выдано <b>{date_reg}</b>\n"
-                        f"🛡️ Выдал {admin_user['link']}\n"
-                        f"🔗 {message_admin_link}\n"
-                        f"<blockquote>{restr['reason']}</blockquote>"
-                    )
+        if restr['restr'] == "ban":
+            await message.reply(
+                # Вывод
+                text=(
+                    f"⛔ {target_user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                    f"🆔 <code>@{target_tid}</code>\n"
+                    f"⏳ Выдано <b>{date_reg}</b>\n"
+                    f"🛡️ Выдал {admin_user['link']}\n"
+                    f"🔗 {message_admin_link}"
+                    f"<blockquote>{restr['reason']}</blockquote>"
                 )
-            if restr['restr'] == "mute":
-                await msg.reply(
-                    # Вывод
-                    text=(
-                        f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
-                        f"🆔 <code>@{target_tid}</code>\n"
-                        f"⏳ Выдано <b>{date_reg}</b>\n"
-                        f"🛡️ Выдал {admin_user['link']}\n"
-                        f"🔗 {message_admin_link}"
-                        f"<blockquote>{restr['reason']}</blockquote>"
-                    )
+            )
+        if restr['restr'] == "mute":
+            await message.reply(
+                # Вывод
+                text=(
+                    f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                    f"🆔 <code>@{target_tid}</code>\n"
+                    f"⏳ Выдано <b>{date_reg}</b>\n"
+                    f"🛡️ Выдал {admin_user['link']}\n"
+                    f"🔗 {message_admin_link}"
+                    f"<blockquote>{restr['reason']}</blockquote>"
                 )
+            )
 
 ##################################
 #   Команды для личных чатов     #
@@ -1470,6 +1468,53 @@ async def introduce(message: Message):
         reply_markup=await kb.add_to_chat()
     )
 
+async def restr_reason_private(message: Message):
+    user = await db.mk_user(message.from_user)
+    user_tid = user['tid']
+    restrs = await db.get_restrs_by_user_tid(user_tid)
+
+    if not restrs:
+        return await message.answer("У Вас нет наказаний ни в одной паутине. <b>Так держать!</b>")
+
+    web_forename = None
+    args = message.text.split(" ", 1)
+    if len(args) == 2:
+        web_forename = args[1]
+
+    for restr in restrs:
+        web = await db.get_web(restr['web_id'])
+        if web_forename and web['forename'] != web_forename:
+            continue
+        admin_user = await db.get_user_by_tid(restr['admin_tid'])
+        date_reg = await parse_date(restr['date_reg'], "HH:mm d MMMM")
+        date_until = await parse_date(restr['date_until'], "HH:mm d MMMM")
+        message_admin_link = restr['message_admin_link'] + "\n" if restr['message_admin_link'] else ""
+
+        if restr['restr'] == "ban":
+            await message.answer(
+                # Вывод
+                text=(
+                    f"⛔ {user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                    f"🆔 <code>@{user_tid}</code>\n"
+                    f"⏳ Выдано <b>{date_reg}</b>\n"
+                    f"🛡️ Выдал {admin_user['link']}\n"
+                    f"🔗 {message_admin_link}"
+                    f"<blockquote>{restr['reason']}</blockquote>"
+                )
+            )
+        if restr['restr'] == "mute":
+            await message.answer(
+                # Вывод
+                text=(
+                    f"🔇 {user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> до <b>{date_until}</b>\n"
+                    f"🆔 <code>@{user_tid}</code>\n"
+                    f"⏳ Выдано <b>{date_reg}</b>\n"
+                    f"🛡️ Выдал {admin_user['link']}\n"
+                    f"🔗 {message_admin_link}"
+                    f"<blockquote>{restr['reason']}</blockquote>"
+                )
+            )
+
 #####################################################################
 #   ГЛАВНЫЙ ОБРАБОТЧИК                                              #
 #   Перед тем, как обработать команду, он добавлят человека,        #
@@ -1497,6 +1542,7 @@ async def main(message: Message):
 
     msgtext = message.text.strip()
     msgtextcf = msgtext.casefold()
+    msgchattype = message.chat.type
 
     if msgtextcf in ("бот", "кинг", "пинг", "пиу", "пиф", "пук"):
         return await ping(message)
@@ -1510,6 +1556,8 @@ async def main(message: Message):
             return await add_to_chat(message)
         elif msgtext == "📚 Команды":
             return await commands_list(message)
+        elif msgtextcf.startswith(("причины", "наказания")):
+            return await restr_reason_private(message)
 
     elif message.chat.type in ("group", "supergroup"):
         if msgtextcf == "паутина":
@@ -1550,4 +1598,4 @@ async def main(message: Message):
         elif msgtextcf in ("жалобы", "репорты"):
             return await reports(message)
         elif msgtextcf.startswith(("причина", "причины", "наказание", "наказания")):
-            return await restr_reason(message)
+            return await restr_reason_group(message)
