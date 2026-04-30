@@ -680,7 +680,7 @@ class Database():
             reason = "Причина не указана."
         if not reason:
             reason = "Причина не указана."
-        reason = f"{reason} | \"{message_user.reply_to_message.text}\""
+        reason = f"{reason} | \"{message_user.reply_to_message.text or "[ВЛОЖЕНИЕ]"}\""
 
         try:
             await self.cur.execute(

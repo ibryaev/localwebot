@@ -660,10 +660,12 @@ async def gban(message: Message):
             date_until, date_until_str = date_until_pack
 
     # Непосредственное назначение наказания
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока пользователь наказывается
+
     ## Запись в БД
     restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, message, reason, date_until)
     if restr is None:
-        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await msg.edit_text("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
 
     ## Назначение в Телеграме
@@ -680,7 +682,7 @@ async def gban(message: Message):
             continue
 
     # Вывод
-    await message.reply(
+    await msg.edit_text(
         f"⛔ {target_user['link']}, глобальный бан в паутине чатов <b>{web['forename']}</b> на <b>{date_until_str}</b>\n"
         f"🆔 <code>@{target_tid}</code>\n"
         f"🛡️ Выдал {sender_user['link']}\n"
@@ -719,7 +721,7 @@ async def gunban(message: Message):
         return await message.reply(f"Недостаточно прав (<b>{sender_admin_poststr}</b>/<b>{post_str['moder']}</b>).") # Вывод
 
     # Непосредственное удаление наказания
-    msg = await message.reply("Подождите, идёт загрузка...") # Пока пользователь разбанивается
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока с пользователя снимается наказание
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -862,10 +864,12 @@ async def gmute(message: Message):
             date_until, date_until_str = date_until_pack
 
     # Непосредственное назначение наказания
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока пользователь наказывается
+
     ## Запись в БД
     restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, message, reason, date_until)
     if restr is None:
-        return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+        return await msg.edit_text("Непредвиденная ошибка. Попробуйте позже.") # Вывод
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
 
     ## Назначение в Телеграме
@@ -900,7 +904,7 @@ async def gmute(message: Message):
             continue
 
     # Вывод
-    await message.reply(
+    await msg.edit_text(
         f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> на <b>{date_until_str}</b>\n"
         f"🆔 <code>@{target_tid}</code>\n"
         f"🛡️ Выдал {sender_user['link']}\n"
@@ -950,7 +954,7 @@ async def gunmute(message: Message):
             return await message.reply(f"Недостаточно прав (<b>{post_str[sender_admin_post]}</b>/<b>{post_str['adminjr']}</b>)") # Вывод
 
     # Непосредственное удаление наказания
-    msg = await message.reply("Подождите, идёт загрузка...") # Пока пользователь размучивается
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока с пользователя снимается наказание 
 
     ## Назначение в Телеграме
     chats_tid = web['chats_tid']
@@ -999,10 +1003,10 @@ async def gunmute(message: Message):
 
     ## Удаление записи из БД
     result = await db.rm_restr(target_restr['restr_id'])
-    if result is None: return await message.reply("Непредвиденная ошибка. Попробуйте позже.") # Вывод
+    if result is None: return await msg.edit_text("Непредвиденная ошибка. Попробуйте позже.") # Вывод
 
     # Вывод
-    await message.reply(
+    await msg.edit_text(
         f"🔊 {target_user['link']}, глобальный размут в паутине <b>{web['forename']}</b>\n"
         f"🆔 <code>@{target_tid}</code>\n"
         f"🛡️ Снял {sender_user['link']}"
@@ -1061,6 +1065,8 @@ async def gkick(message: Message):
         reason = f"{text_rows[1].strip()}{target_quote}"
 
     # Непосредственное назначение наказания
+    msg = await message.reply("Подождите, идёт загрузка...") # Пока пользователь наказывается
+
     ## Запись в БД
     await db.upd_plus_restrs_count(sender_tid, web_id, sender_admin['restrs_count'])
 
@@ -1082,7 +1088,7 @@ async def gkick(message: Message):
             continue
 
     # Вывод
-    await message.reply(
+    await msg.edit_text(
         f"👟 {target_user['link']}, глобальный кик в паутине чатов <b>{web['forename']}</b>\n"
         f"🆔 <code>@{target_tid}</code>\n"
         f"🛡️ Выдал {sender_user['link']}\n"

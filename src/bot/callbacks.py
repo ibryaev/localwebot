@@ -995,6 +995,12 @@ async def report_gban(callback: CallbackQuery):
     reason = f"Жалоба (#{report['report_id']}): \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""
 
     # Непосредственное назначение наказания
+    await callback.answer(
+        # Пока пользователь наказывается
+        text="Подождите, идёт загрузка. Вы можете закрыть это окно.",
+        show_alert=True
+    )
+
     ## Запись в БД
     restr = await db.mk_restr(web_id, target_tid, "ban", sender_tid, reason=reason)
     if restr is None:
@@ -1103,6 +1109,12 @@ async def report_gmute(callback: CallbackQuery):
     reason = f"Жалоба (#{report['report_id']}): \"{report['reason'] or "[ВЛОЖЕНИЕ]"}\""
 
     # Непосредственное назначение наказания
+    await callback.answer(
+        # Пока пользователь наказывается
+        text="Подождите, идёт загрузка. Вы можете закрыть это окно.",
+        show_alert=True
+    )
+
     ## Запись в БД
     restr = await db.mk_restr(web_id, target_tid, "mute", sender_tid, reason=reason)
     if restr is None:
@@ -1133,7 +1145,8 @@ async def report_gmute(callback: CallbackQuery):
                     can_pin_messages=False,
                     can_manage_topics=False
                 ),
-                use_independent_chat_permissions=True
+                use_independent_chat_permissions=True,
+                until_date=datetime.fromtimestamp(datetime.now(tz).timestamp() + 86_400.0, tz) # На один день
             )
             await sleep(2)
         except Exception: # Если бота нет в чате или нет прав
@@ -1141,12 +1154,11 @@ async def report_gmute(callback: CallbackQuery):
 
     # Вывод
     await callback.message.reply(
-        f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> на <b>бессрочно</b>\n"
+        f"🔇 {target_user['link']}, глобальный мут в паутине чатов <b>{web['forename']}</b> на <b>1 день</b>\n"
         f"🆔 <code>@{target_tid}</code>\n"
         f"🛡️ Выдал {sender_user['link']}\n"
         f"<blockquote>{reason}</blockquote>"
     )
-    await callback.answer()
 
 # Отмечает жалобу проверенной
 
